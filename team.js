@@ -17,6 +17,50 @@
 
   let token = null, user = null, dash = null, dashLoading = false, gisReady = false, gateError = "";
   let history = [], pending = [], busy = false;
+  const DEMO = new URLSearchParams(location.search).has("demo");
+
+  // ───────── Mode démo : données fictives, aucun appel serveur ─────────
+  const DEMO_DASH = {
+    today: new Date().toLocaleDateString("fr-FR"),
+    projets: [
+      { "Code projet": "390_MAISON_AURORE_FILM_FETES", "Client": "Maison Aurore", "Nom du projet": "Film des fêtes", "Chef de projet": "camille@rumeur.paris", "Statut": "Proposition envoyée", "Deadline": "06/11/2026", "Prochaine action": "Relancer la cliente pour valider la DA V2", "Lien dossier Drive": "https://drive.google.com/", "Lien brief": "https://docs.google.com/" },
+      { "Code projet": "391_ATELIER_SEL_SHOOTING_PARFUM", "Client": "Atelier Sel", "Nom du projet": "Shooting parfum", "Chef de projet": "hugo@rumeur.paris", "Statut": "Production", "Deadline": "28/10/2026", "Prochaine action": "Confirmer le studio et le casting mains", "Lien dossier Drive": "https://drive.google.com/" },
+      { "Code projet": "392_NOVA_BEAUTE_CONTENUS_RS", "Client": "Nova Beauté", "Nom du projet": "Contenus réseaux sociaux", "Chef de projet": "camille@rumeur.paris", "Statut": "Brief reçu", "Deadline": "20/11/2026", "Prochaine action": "Envoyer la fiche brief à l'équipe crea", "Lien dossier Drive": "https://drive.google.com/", "Lien brief": "https://docs.google.com/" },
+    ],
+    livraisons: [{ "Projet": "391", "Client": "Atelier Sel", "Livrable": "Moodboard", "Version": "V2", "Envoyée le": "14/10/2026", "Lien": "https://drive.google.com/", "Statut": "Envoyée", "Jours ouvrés sans réponse": 3, "Relance": "À relancer" }],
+    retours: [
+      { "Reçu le": "16/10/2026", "Projet": "390", "Livrable": "DA", "Version": "V1", "Retour (un point par ligne)": "Palette plus chaude, moins de doré", "Statut": "À traiter" },
+      { "Reçu le": "16/10/2026", "Projet": "390", "Livrable": "DA", "Version": "V1", "Retour (un point par ligne)": "Ajouter une piste en extérieur nuit", "Statut": "En cours" },
+    ],
+    po: [{ "Projet": "391_ATELIER_SEL", "Client": "Atelier Sel", "N° devis": "D-2026-118", "Montant HT (€)": "14 800,00 €", "Devis validé le": "02/10/2026", "Jours sans PO": 17, "Statut": "À relancer" }],
+    factures: [
+      { "Fournisseur": "Studio Lumière", "N° facture": "F-0412", "Montant TTC (€)": "2 160,00 €", "Paiement prévu": "30/11/2026", "Projet": "391", "Statut": "À payer" },
+      { "Fournisseur": "Loc Matériel Pro", "N° facture": "88231", "Montant TTC (€)": "540,00 €", "Paiement prévu": "", "Projet": "", "Statut": "À vérifier" },
+    ],
+    contrats: [{ "Date": "17/10/2026", "Type (NDA / Contrat freelance / PO / Facture)": "NDA", "Prestataire ou client": "Léa Martin (photographe)", "Projet lié": "391", "Statut (brouillon / envoyé Yousign / signé / payé / à relancer)": "envoyé Yousign", "Lien document": "https://docs.google.com/" }],
+    anniversaires: [{ prenom: "Hugo", nom: "", date: "23/10", dans: 4, preferences: "fan de pâtisserie" }, { prenom: "Camille", nom: "", date: "12/11", dans: 24, preferences: "" }],
+    evenements: [{ "Date début": "07/11/2026", "Événement": "Salon photo (exemple)", "Lieu": "Paris", "Lien": "", "Pertinence (1-3)": 3, "Qui y va": "Hugo, Camille", dans: 19 }],
+    achats: [
+      { "Article": "Café en grains", "Fournisseur": "Torréfacteur du quartier", "Dernière commande": "02/10/2026", bas: true, dans: -3, aCommander: true },
+      { "Article": "Lait / boisson végétale", "Fournisseur": "Supermarché", "Dernière commande": "15/10/2026", bas: false, dans: 3, aCommander: true },
+      { "Article": "Thé & infusions", "Fournisseur": "Supermarché", "Dernière commande": "01/10/2026", bas: false, dans: 12, aCommander: false },
+      { "Article": "Eau pétillante", "Fournisseur": "Supermarché", "Dernière commande": "12/10/2026", bas: false, dans: 7, aCommander: false },
+    ],
+  };
+  async function demoApi(action, payload) {
+    await new Promise((r) => setTimeout(r, action === "chat" ? 900 : 250));
+    if (action === "dashboard") return { data: JSON.parse(JSON.stringify(DEMO_DASH)) };
+    if (action === "upload") return { file: { id: "demo", name: payload.file.name } };
+    if (action === "chat") return {
+      reply: "**Mode démo** — l'assistant n'est pas encore branché.\n\nUne fois activé, il pourra par exemple :\n- transformer vos notes de call en **fiche brief** (résumé, recommandations, warnings) puis créer le dossier projet dans le Drive ;\n- ranger un devis, une DA ou un retour client dans le bon projet ;\n- préparer un **NDA** ou un contrat freelance prêt pour Yousign ;\n- signaler ce qui manque au bureau et préparer la commande.",
+      actions: [], memo: "",
+    };
+    if (action === "achat_signal" || action === "achat_ordered") {
+      DEMO_DASH.achats.forEach((a) => { if (a["Article"] === payload.article) { a.bas = action === "achat_signal"; a.aCommander = action === "achat_signal"; if (action === "achat_ordered") a.dans = 14; } });
+      if (action === "achat_signal" && !DEMO_DASH.achats.some((a) => a["Article"] === payload.article)) DEMO_DASH.achats.push({ "Article": payload.article, bas: true, aCommander: true, dans: null });
+    }
+    return { result: { demo: true } };
+  }
 
   // ───────── Session ─────────
   function decode(jwt) {
@@ -35,6 +79,7 @@
     renderAccount(); show(current());
   }
   function signOut(silent) {
+    if (DEMO) { location.href = location.pathname + location.hash; return; }
     token = null; user = null; dash = null; store.del("rumeur_tok");
     if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
     renderAccount(); show(current());
@@ -67,6 +112,7 @@
     if (user) {
       a.innerHTML = `${user.picture ? `<img src="${esc(user.picture)}" alt="" referrerpolicy="no-referrer">` : ""}<button type="button" id="signout" title="${esc(user.email)}">Déconnexion</button>`;
       $("signout").onclick = () => signOut(false);
+      if (DEMO) $("signout").textContent = "Quitter la démo";
     } else {
       a.innerHTML = configured ? `<button type="button" id="signin-nav">Connexion</button>` : "";
       const b = $("signin-nav"); if (b) b.onclick = () => go("assistant");
@@ -79,6 +125,7 @@
 
   // ───────── API ─────────
   async function api(action, payload) {
+    if (DEMO) return demoApi(action, payload);
     if (!configured) throw new Error("Espace équipe pas encore configuré.");
     if (!tokenValid()) { signOut(true); if (gisReady) google.accounts.id.prompt(); throw new Error("Session expirée : reconnectez-vous."); }
     const res = await fetch(CFG.API_URL, { method: "POST", body: JSON.stringify(Object.assign({ action, idToken: token }, payload || {})) });
@@ -116,8 +163,9 @@
 
   function renderGate(v) {
     const el = $("v-" + v);
+    const demoLink = `<p style="margin:20px 0 0"><a class="btn ghost" href="?demo#${v}">Voir la démo</a></p>`;
     if (!configured) {
-      el.innerHTML = `<div class="in"><div class="gate"><p class="eyebrow">Espace équipe</p><h2>Bientôt ouvert.</h2><p>L'assistant, les projets, l'admin et l'office arrivent ici pour l'équipe Rumeur. Configuration en cours.</p></div></div>`;
+      el.innerHTML = `<div class="in"><div class="gate"><p class="eyebrow">Espace équipe</p><h2>Bientôt ouvert.</h2><p>L'assistant, les projets, l'admin et l'office arrivent ici pour l'équipe Rumeur. Configuration en cours.</p>${demoLink}</div></div>`;
       return;
     }
     el.innerHTML = `<div class="in"><div class="gate"><p class="eyebrow">Espace équipe</p><h2>Réservé à l'équipe Rumeur.</h2><p>Connectez-vous avec votre compte @${esc(DOMAIN)} pour accéder à l'assistant, aux projets, à l'admin et à l'office.</p><div class="gsi" id="gsi-${v}"></div>${gateError ? `<p class="err">${esc(gateError)}</p>` : ""}</div></div>`;
@@ -462,8 +510,15 @@
   });
 
   // ───────── Démarrage ─────────
+  if (DEMO) {
+    user = { email: "demo@" + DOMAIN, name: "Démo", picture: "" };
+    const bar = document.createElement("div");
+    bar.className = "demobar";
+    bar.innerHTML = `Mode démo : données fictives, rien n'est enregistré. <a href="${esc(location.pathname)}">Quitter</a>`;
+    document.querySelector(".nav").after(bar);
+  }
   renderAccount();
-  const saved = configured && store.get("rumeur_tok");
+  const saved = !DEMO && configured && store.get("rumeur_tok");
   if (saved) setToken(saved);
   show(current());
   if (window.google && google.accounts) initGis();
