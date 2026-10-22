@@ -2,6 +2,19 @@
 window.RADAR_UPDATED = "2026-10-22";
 window.RADAR_ROWS = [
  {
+  "id": "20261022-inspi-curry-tian",
+  "date": "2026-10-22",
+  "semaine": "2026-W43",
+  "semaineLabel": "19 – 23 oct.",
+  "categorie": "inspi",
+  "marque": "Curry Tian (réalisatrice)",
+  "titre": "La société de prod Stadium signe la réalisatrice et artiste 3D Curry Tian (Chanel, L'Oréal, Mercedes-Benz, Beats) pour les États-Unis ; elle s'était fait connaître avec son court métrage d'animation « Simulacra » (21/10).",
+  "pourquoi": "Une réalisatrice qui mêle CG, animation et prise de vue réelle, déjà repérée par Chanel et L'Oréal : un profil à suivre pour des films beauté hybrides ou augmentés. Voir si elle est représentée en Europe.",
+  "priorite": 1,
+  "source": "shots, 21/10",
+  "url": "https://shots.net/news/view/stadium-signs-curry-tian-for-us-representation"
+ },
+ {
   "id": "20261022-mazarine-reiffers",
   "categorie": "agence",
   "marque": "Mazarine",
