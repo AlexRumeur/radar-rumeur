@@ -49,6 +49,8 @@
         </div>
       </header>
 
+      ${ficheView(d.fiche, items)}
+
       <details class="howto"${items.length ? "" : " open"}>
         <summary>Comment ça marche ?</summary>
         <div class="howto-body">
@@ -97,6 +99,36 @@
     </div>`;
     wire();
     fetchThumbs();
+  }
+
+  function ficheView(f, items) {
+    if (!f || !Object.keys(f).length) {
+      return `<section class="fiche empty-fiche"><p class="eyebrow">Le projet en un coup d'œil</p><p>Déposez le brief, la note d'intention ou le traitement ci-dessous : l'assistant en tire une fiche visuelle du projet (intention, thèmes, ton, personnages, lieux recherchés, planning, budget, équipe, questions ouvertes).</p></section>`;
+    }
+    const L = (a) => (Array.isArray(a) ? a.filter(Boolean) : []);
+    const chips = (a, cls) => L(a).map(x => `<span class="fchip ${cls || ""}">${esc(x)}</span>`).join("");
+    const nLieux = items.filter(i => i.rubrique === "Lieux").length, nCast = items.filter(i => i.rubrique === "Casting").length;
+    const meta = [f.type, f.duree, f.cible ? "Cible : " + f.cible : ""].filter(Boolean);
+    const block = (title, inner, cls) => inner ? `<div class="fblock ${cls || ""}"><h5>${esc(title)}</h5>${inner}</div>` : "";
+    return `<section class="fiche">
+      <p class="eyebrow">Le projet en un coup d'œil${f.maj ? ` <span class="mini">· mis à jour le ${esc(f.maj)}</span>` : ""}</p>
+      ${f.logline ? `<h2 class="logline">${esc(f.logline)}</h2>` : ""}
+      ${meta.length ? `<p class="fmeta">${meta.map(esc).join(" · ")}</p>` : ""}
+      ${f.intention ? `<p class="intention">${esc(f.intention)}</p>` : ""}
+      ${L(f.images).length ? `<div class="mood">${L(f.images).slice(0, 8).map(id => `<button type="button" class="ph" data-ws-photo="${esc(id)}" aria-label="Agrandir"><img data-thumb="${esc(id)}" alt="" ${ws.thumbs[id] ? `src="${ws.thumbs[id]}"` : ""}></button>`).join("")}</div>` : ""}
+      <div class="fgrid">
+        ${block("Thèmes", L(f.themes).length ? `<div class="fchips">${chips(f.themes)}</div>` : "")}
+        ${block("Ton & univers", L(f.ton).length ? `<div class="fchips">${chips(f.ton, "alt")}</div>` : "")}
+        ${block("Livrables", L(f.livrables).length ? `<ul>${L(f.livrables).map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "")}
+        ${block("Personnages" + (nCast ? ` · ${nCast} proposition(s) casting` : ""), L(f.personnages).length ? `<div class="persos">${L(f.personnages).map(p => `<div class="perso"><b>${esc(p.nom || "")}</b>${p.role ? `<span>${esc(p.role)}</span>` : ""}${p.description ? `<p>${esc(p.description)}</p>` : ""}</div>`).join("")}</div>` : "", "wide")}
+        ${block("Lieux recherchés" + (nLieux ? ` · ${nLieux} proposé(s)` : ""), L(f.lieux_recherches).length ? `<ul>${L(f.lieux_recherches).map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "")}
+        ${block("Budget", f.budget ? `<p class="big-num">${esc(f.budget)}</p>` : "")}
+        ${block("Équipe", L(f.equipe).length ? `<ul class="team">${L(f.equipe).map(e => `<li><b>${esc(e.nom || "")}</b> <span class="mini">${esc(e.role || "")}</span></li>`).join("")}</ul>` : "")}
+        ${block("Planning", L(f.planning).length ? `<ol class="timeline">${L(f.planning).map(e => `<li><span class="tdate">${esc(e.date || "à caler")}</span><span>${esc(e.etape || "")}</span></li>`).join("")}</ol>` : "", "wide")}
+        ${block("Références", L(f.references).length ? `<div class="fchips">${chips(f.references, "ref")}</div>` : "")}
+        ${block("Questions ouvertes", L(f.questions_ouvertes).length ? `<ul class="vg">${L(f.questions_ouvertes).map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "", "warnblk")}
+      </div>
+    </section>`;
   }
 
   function section(rub, list, statuts) {
