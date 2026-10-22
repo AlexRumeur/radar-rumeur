@@ -1,6 +1,67 @@
 // Données du Radar Rumeur — mises à jour automatiquement chaque matin (voir RADAR.md).
-window.RADAR_UPDATED = "2026-10-16";
+window.RADAR_UPDATED = "2026-10-22";
 window.RADAR_ROWS = [
+ {
+  "id": "20261022-puig-t3",
+  "categorie": "groupe",
+  "marque": "Puig",
+  "titre": "Ventes du 3e trimestre : 1,39 Md€, +5,6 % à périmètre comparable, tirées par le maquillage (+16,1 %) ; parfums et mode +3,9 % (21/10).",
+  "pourquoi": "Puig (Jean Paul Gaultier, Carolina Herrera, Charlotte Tilbury) reste en croissance : bon moment pour proposer des contenus parfum et maquillage. Écouter les priorités annoncées à la journée investisseurs du 28/10.",
+  "priorite": 2,
+  "source": "FashionNetwork (Reuters), 21/10",
+  "url": "https://ww.fashionnetwork.com/news/Puig-beats-sales-forecasts-as-makeup-growth-offsets-skincare-dip,1877936.html",
+  "img": "https://media.fashionnetwork.com/cdn-cgi/image/fit=cover,width=600,height=600,format=auto/m/f70d/8d0b/2cb1/23d2/196d/dce9/e03c/0093/5557/a83e/a83e.jpg",
+  "echeance": "2026-10-28",
+  "echeanceLabel": "Journée investisseurs Puig",
+  "date": "2026-10-22",
+  "semaine": "2026-W43",
+  "semaineLabel": "19 – 23 oct."
+ },
+ {
+  "id": "20261022-guerlain-heure-possibles",
+  "categorie": "cible",
+  "marque": "Guerlain",
+  "titre": "Exposition « L'Heure des Possibles » avec 34 artistes au 68 Champs-Élysées, du 21/10 au 15/11, en marge d'Art Basel Paris et du lancement de L'Heure Bleue.",
+  "pourquoi": "Guerlain mise sur l'art et l'événementiel pour un lancement parfum : un format proche des activations et contenus que Rumeur produit. Aller voir et repérer qui a produit.",
+  "priorite": 2,
+  "source": "FashionNetwork, 20/10",
+  "url": "https://fr.fashionnetwork.com/news/Que-faire-a-paris-a-l-occasion-de-art-basel-,1877402.html",
+  "img": "https://media.fashionnetwork.com/cdn-cgi/image/fit=cover,width=600,height=600,format=auto/m/cc4d/5d85/c966/bfe8/0ef8/49a0/d10e/5d5d/b980/031d/031d.jpg",
+  "echeance": "2026-11-15",
+  "echeanceLabel": "Fin de l'exposition",
+  "date": "2026-10-22",
+  "semaine": "2026-W43",
+  "semaineLabel": "19 – 23 oct."
+ },
+ {
+  "id": "20261022-miumiu-art-basel",
+  "categorie": "cible",
+  "marque": "Miu Miu",
+  "titre": "Projet « Geste de Consolation » de la cinéaste Alice Diop au Palais d'Iéna pendant Art Basel Paris, du 21 au 25/10.",
+  "pourquoi": "Miu Miu confie encore ses prises de parole culturelles à des réalisatrices : la marque reste très tournée vers le film. Un angle à garder pour approcher l'équipe image.",
+  "priorite": 1,
+  "source": "FashionNetwork, 20/10",
+  "url": "https://fr.fashionnetwork.com/news/Que-faire-a-paris-a-l-occasion-de-art-basel-,1877402.html",
+  "echeance": "2026-10-25",
+  "echeanceLabel": "Fin du projet au Palais d'Iéna",
+  "date": "2026-10-22",
+  "semaine": "2026-W43",
+  "semaineLabel": "19 – 23 oct."
+ },
+ {
+  "id": "20261022-hermes-t3",
+  "categorie": "cible",
+  "marque": "Hermès",
+  "titre": "Chiffre d'affaires du 3e trimestre : 4,1 Md€ (+5,5 %), maroquinerie +10,8 %, parfums et beauté +7,5 %, Chine en recul (22/10).",
+  "pourquoi": "Hermès reste solide et la beauté progresse : une piste pour des contenus parfum et beauté. Pas d'urgence, à garder en tête.",
+  "priorite": 1,
+  "source": "FashionNetwork, 22/10",
+  "url": "https://uk.fashionnetwork.com/news/Hermes-posts-5-5-increase-in-third-quarter-sales-driven-by-europe-and-the-americas,1878246.html",
+  "img": "https://media.fashionnetwork.com/cdn-cgi/image/fit=cover,width=600,height=600,format=auto/m/cf68/3ba9/34af/1c88/5921/0320/346a/a8a3/41b8/fb33/fb33.jpg",
+  "date": "2026-10-22",
+  "semaine": "2026-W43",
+  "semaineLabel": "19 – 23 oct."
+ },
  {
   "categorie": "agence",
   "marque": "BETC Paris",
