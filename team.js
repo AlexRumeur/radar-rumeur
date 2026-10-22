@@ -4,8 +4,8 @@
   const CFG = window.RUMEUR_CONFIG || {};
   const DOMAIN = CFG.DOMAIN || "rumeur.paris";
   const configured = !!(CFG.API_URL && CFG.GOOGLE_CLIENT_ID);
-  const VIEWS = ["radar", "assistant", "projets", "admin", "office"];
-  const PRIVATE = new Set(["assistant", "projets", "admin", "office"]);
+  const VIEWS = ["radar", "assistant", "projets", "admin", "office", "workspace"];
+  const PRIVATE = new Set(["assistant", "projets", "admin", "office", "workspace"]);
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const store = {
@@ -59,6 +59,12 @@
       DEMO_DASH.achats.forEach((a) => { if (a["Article"] === payload.article) { a.bas = action === "achat_signal"; a.aCommander = action === "achat_signal"; if (action === "achat_ordered") a.dans = 14; } });
       if (action === "achat_signal" && !DEMO_DASH.achats.some((a) => a["Article"] === payload.article)) DEMO_DASH.achats.push({ "Article": payload.article, bas: true, aCommander: true, dans: null });
     }
+    if (action === "ws_get" || action === "ws_ingest") return { data: { projet: { code: payload.code, nom: "BODY", client: "Interne (Rumeur)", equipe: "Réalisation : Cécilia Feller", statut: "Développement", dossier: "", workspace: "" }, rubriques: ["Brief", "Lieux", "Casting", "Équipe & prestataires", "Budget & devis", "Planning", "Références", "Divers"], statuts: ["proposé", "en option", "retenu", "écarté", "à relancer", "info"],
+      items: [
+        { id: "d1", rubrique: "Lieux", titre: "Atelier de danse — Paris 11e", prestataire: "Agence de lieux (exemple)", prix: "1 800 € HT / jour, régie incluse", montant: 1800, resume: "Grand studio lumineux avec parquet, idéal pour les séquences de mouvement.", details: { Surface: "220 m²", Dispos: "semaine 47" }, points_forts: ["Lumière naturelle", "Parquet de danse"], vigilance: ["Électricité à confirmer"], statut: "proposé", photos: [], fichiers: [], liens: [], ajoute_le: "22/10/2026", ajoute_par: "demo@rumeur.paris" },
+        { id: "d2", rubrique: "Lieux", titre: "Piscine Art déco — Montreuil", prestataire: "Agence de lieux (exemple)", prix: "2 600 € HT / jour", montant: 2600, resume: "Bassin carrelé années 30, très graphique.", details: { Dispos: "lundis uniquement" }, points_forts: ["Décor unique"], vigilance: ["Tournage lundi seulement", "Assurance spécifique"], statut: "en option", photos: [], fichiers: [], liens: [], ajoute_le: "22/10/2026", ajoute_par: "demo@rumeur.paris" },
+        { id: "d3", rubrique: "Brief", titre: "Note d'intention — BODY", resume: "Documentaire sur le rapport au corps, en 4 portraits.", details: {}, points_forts: [], vigilance: [], statut: "info", photos: [], fichiers: [], liens: [], ajoute_le: "21/10/2026", ajoute_par: "demo@rumeur.paris" },
+      ], fil: [{ date: "22/10/2026 15:40", par: "demo@rumeur.paris", resume: "L'agence propose 2 lieux à Paris et Montreuil", elements: "Atelier de danse · Piscine Art déco" }] } };
     return { result: { demo: true } };
   }
 
@@ -146,17 +152,18 @@
   }
 
   // ───────── Navigation ─────────
-  function current() { const h = location.hash.replace("#", ""); return VIEWS.includes(h) ? h : "radar"; }
+  function current() { const h = decodeURIComponent(location.hash.replace("#", "")); if (h.indexOf("ws-") === 0) return "workspace"; return VIEWS.includes(h) ? h : "radar"; }
+  function wsCodeFromHash() { const h = decodeURIComponent(location.hash.replace("#", "")); return h.indexOf("ws-") === 0 ? h.slice(3) : ""; }
   function go(v) { if (location.hash !== "#" + v) location.hash = v; else show(v); }
   window.addEventListener("hashchange", () => show(current()));
 
   function show(v) {
     VIEWS.forEach((x) => { const el = $("v-" + x); if (el) el.hidden = x !== v; });
-    document.querySelectorAll(".tabs a").forEach((t) => t.setAttribute("aria-current", t.dataset.view === v ? "page" : "false"));
-    document.title = v === "radar" ? "Radar Rumeur" : "Rumeur · " + ({ assistant: "Assistant", projets: "Projets", admin: "Admin", office: "Office" }[v]);
+    document.querySelectorAll(".tabs a").forEach((t) => t.setAttribute("aria-current", t.dataset.view === (v === "workspace" ? "projets" : v) ? "page" : "false"));
+    document.title = v === "radar" ? "Radar Rumeur" : "Rumeur · " + (({ assistant: "Assistant", projets: "Projets", admin: "Admin", office: "Office" }[v] || "Workspace " + wsCodeFromHash()));
     if (PRIVATE.has(v)) {
       if (!user) { renderGate(v); return; }
-      if (v !== "assistant") loadDash(false);
+      if (v !== "assistant" && v !== "workspace") loadDash(false);
       renderView(v);
     }
   }
@@ -176,6 +183,7 @@
   function renderView(v) {
     if (!user || current() !== v) return;
     if (v === "assistant") return renderAssistant();
+    if (v === "workspace") return renderWorkspace();
     const el = $("v-" + v);
     if (!dash) { el.innerHTML = `<div class="in"><div class="loading">Chargement…</div></div>`; return; }
     if (v === "projets") el.innerHTML = viewProjets();
@@ -215,12 +223,12 @@
     const relance = L.filter((l) => /relancer/i.test(l["Relance"] || ""));
     const cards = P.map((p) => `<article class="pcard">
         <span class="code">${esc(p["Code projet"])}</span>
-        <h4>${esc(p["Nom du projet"] || p["Code projet"])}</h4>
+        <h4><a class="plain" href="#ws-${esc(p["Code projet"])}">${esc(p["Nom du projet"] || p["Code projet"])}</a></h4>
         <span class="client">${esc(p["Client"])}${p["Chef de projet"] ? " · " + esc(p["Chef de projet"]) : ""}</span>
         ${p["Prochaine action"] ? `<p class="next">→ ${esc(p["Prochaine action"])}</p>` : ""}
         <div class="foot2"><span>${statusTag(p["Statut"])} ${p["Deadline"] ? `<span class="mini">· deadline ${esc(p["Deadline"])}</span>` : ""}</span>
         <span>${linkOf(p["Lien dossier Drive"], "Dossier")} ${linkOf(p["Lien brief"], "Brief")}</span></div>
-        <div class="foot2"><button type="button" class="btn small ghost" data-ask="${esc("Fais-moi le récap du projet " + p["Code projet"])}">Récap</button>
+        <div class="foot2"><a class="btn small primary" href="#ws-${esc(p["Code projet"])}">Ouvrir le workspace</a><button type="button" class="btn small ghost" data-ask="${esc("Fais-moi le récap du projet " + p["Code projet"])}">Récap</button>
         <button type="button" class="btn small ghost" data-ask="${esc("Range un document dans le projet " + p["Code projet"] + " : ")}" data-noauto="1">Ajouter un doc</button></div>
       </article>`);
     return `<div class="in">
@@ -509,6 +517,10 @@
     } catch (err) { toast(err.message); }
     finally { b.disabled = false; }
   });
+
+  // ───────── Workspace (workspace.js) ─────────
+  function renderWorkspace() { if (window.RumeurTeam && window.RumeurTeam.renderWorkspace) window.RumeurTeam.renderWorkspace(); }
+  window.RumeurTeam = { api, esc, toast, readB64, linkOf, wsCodeFromHash, current, getUser: () => user };
 
   // ───────── Démarrage ─────────
   if (DEMO) {

@@ -81,6 +81,10 @@ function route(req, user) {
     case 'achat_ordered': return { result: achatOrdered(req.article, user) };
     case 'add_event': return { result: appendObj('agenda', Object.assign({}, req.event, { 'Ajouté par': user.email })) };
     case 'add_idea': return { result: addIdea(req.description, req.pole, user) };
+    case 'ws_get': return { data: wsGet(req.code, { light: true }) };
+    case 'ws_ingest': return { data: wsIngest(req, user) };
+    case 'ws_update': return { result: wsUpdate(req, user) };
+    case 'ws_thumbs': return { thumbs: wsThumbs(req) };
     default: throw new Error('Action inconnue : ' + req.action);
   }
 }
@@ -661,6 +665,7 @@ const TOOLS = [
   { name: 'guide_presentation', description: "Renvoie le guide du modèle de présentation Rumeur (45 diapositives : usages, cadres photo, clés de texte, format de la spec). À lire AVANT de préparer une présentation.", input_schema: { type: 'object', properties: {} } },
   { name: 'voir_images', description: "Affiche jusqu'à 16 images du Drive (vignettes) pour les regarder avant de les placer : décrire, choisir, paysage/portrait.", input_schema: { type: 'object', properties: { file_ids: { type: 'array', items: { type: 'string' } } }, required: ['file_ids'] } },
   { name: 'creer_presentation', description: "Construit un .pptx dans le modèle Rumeur (s'ouvre dans Keynote) à partir d'une spec (voir guide_presentation). images = file_id Drive. code = projet (enregistré dans 2.DA & PROPOSITIONS), sinon dossier 07 · PRÉSENTATIONS.", input_schema: { type: 'object', properties: { titre: { type: 'string' }, code: { type: 'string' }, campaign: { type: 'array', items: { type: 'string' } }, brand: { type: 'string' }, slides: { type: 'array', items: { type: 'object' } }, remplace_file_id: { type: 'string', description: 'file_id d’une version précédente à mettre à la corbeille' } }, required: ['titre', 'brand', 'slides'] } },
+  { name: 'lire_workspace', description: "Lit le workspace d'un projet (lieux, casting, prestataires, devis, planning… avec prix, statuts, points forts et vigilance). À utiliser pour comparer, résumer ou répondre à une question sur un projet.", input_schema: { type: 'object', properties: { code: { type: 'string' } }, required: ['code'] } },
   { name: 'noter_idee', description: 'Ajoute une idée de skill / amélioration / bug à la boîte à idées.', input_schema: { type: 'object', properties: { description: { type: 'string' }, pole: { type: 'string' } }, required: ['description'] } },
 ];
 
@@ -693,6 +698,7 @@ function runTool(name, input, user) {
     case 'chercher_connaissances': return searchBrain(i.mots);
     case 'retenir': return rememberFact(i.fait, user);
     case 'guide_presentation': return { guide: DECK_GUIDE };
+    case 'lire_workspace': { const w = wsGet(i.code, { light: true }); w.fil = w.fil.slice(0, 15); return w; }
     case 'voir_images': return viewImages(i.file_ids);
     case 'creer_presentation': return createDeck(i, user);
     default: throw new Error('Outil inconnu : ' + name);
@@ -715,6 +721,7 @@ function systemPrompt(user) {
     "6. Rappels : anniversaires (annuaire), événements pro (agenda, ajoute-y les événements donnés), deadlines projets. Pour une veille d'événements, utilise la recherche web et ne propose que des événements avec une source officielle.",
     "7. Idées : toute suggestion d'outil ou de skill va dans noter_idee.",
     "8. Connaissances : la MÉMOIRE RUMEUR ci-dessous est ta référence sur l'agence (équipe, clients, tarifs, façons de faire). Pour une question plus précise, cherche dans le CERVEAU (chercher_connaissances puis lire_fichier) avant de répondre, et cite le document utilisé. Si l'info n'y est pas, dis-le au lieu d'inventer. Quand on te dit « retiens que… », appelle retenir.",
+    "10. Workspace projet : chaque projet a un workspace (onglet Projets du site) où l'équipe dépose mails, captures, liens et photos, rangés en fiches par rubrique. Pour toute question sur l'avancement, les lieux, le casting, les prestataires ou les prix d'un projet, lis-le avec lire_workspace. Les photos du workspace peuvent servir à une présentation (file_id).",
     "9. Présentations (prez, deck, moodboard, locations, casting, storyboard, traitement) : lis guide_presentation, regarde les photos avec voir_images (pièces jointes, dossier Drive donné par la personne, ou dossier du projet via lister_dossier), propose le plan diapo par diapo en une liste courte, puis appelle creer_presentation. Si textes_modele_restants n'est pas vide, corrige et reconstruis. Termine par le lien de téléchargement, ce qui est sur chaque diapo et les points à vérifier. Textes en anglais par défaut comme le modèle, sauf demande contraire. Les liens de galeries Encuentra/SmugMug ne sont pas lisibles ici : demande les photos en pièces jointes ou un dossier Drive.",
     '',
     '## Règles',
@@ -749,21 +756,24 @@ function knowledgePrompt() {
   ].join('\n');
 }
 
-function callClaude(system, messages, useWeb) {
+function callClaude(system, messages, useWeb, opts) {
+  opts = opts || {};
   if (typeof system === 'string') system = [{ type: 'text', text: system }];
   const key = prop('ANTHROPIC_API_KEY', '');
   if (!key) throw new Error("La clé API Claude n'est pas configurée (ANTHROPIC_API_KEY).");
-  const tools = TOOLS.slice();
+  const tools = (opts.tools || TOOLS).slice();
   if (useWeb) tools.push({ type: 'web_search_20250305', name: 'web_search', max_uses: 3 });
+  const payload = { model: prop('MODEL', 'claude-sonnet-5-5'), max_tokens: opts.max_tokens || 4096, system, messages, tools };
+  if (opts.tool_choice) payload.tool_choice = opts.tool_choice;
   const res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    payload: JSON.stringify({ model: prop('MODEL', 'claude-sonnet-5-5'), max_tokens: 4096, system, messages, tools }),
+    payload: JSON.stringify(payload),
   });
   const code = res.getResponseCode();
   const body = res.getContentText();
   if (code >= 300) {
-    if (useWeb && code === 400 && /web_search/i.test(body)) return callClaude(system, messages, false);
+    if (useWeb && code === 400 && /web_search/i.test(body)) return callClaude(system, messages, false, opts);
     throw new Error('Claude API ' + code + ' : ' + body.slice(0, 300));
   }
   return JSON.parse(body);
