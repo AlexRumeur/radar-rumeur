@@ -220,3 +220,27 @@ a.btn.primary{color:#fff}
 .timeline{list-style:none;padding-left:0!important;display:flex!important;flex-wrap:wrap;gap:8px!important;counter-reset:none}
 .timeline li{display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-left:2px solid var(--hot);background:color-mix(in srgb,var(--hero-ink) 6%,transparent);border-radius:0 10px 10px 0;min-width:140px}
 .tdate{font-size:12px;font-weight:600;color:var(--hot)}
+/* Casting : photos des personnes */
+.wcard.cast .gal .ph.main{aspect-ratio:4/5}
+.wcard.cast .gal img{object-position:center 22%}
+.nophoto{border:0;border-bottom:1px dashed var(--line);background:var(--bg);color:var(--muted);font:500 14px var(--font);aspect-ratio:16/9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.nophoto span{width:64px;height:64px;border-radius:50%;background:var(--line);color:var(--ink,inherit);display:grid;place-items:center;font-size:22px;font-weight:600}
+.nophoto:hover{color:inherit}
+.av{width:56px;height:56px;border-radius:50%;overflow:hidden;background:var(--line);display:grid;place-items:center;flex:none;font-weight:600;font-size:18px}
+.av img{width:100%;height:100%;object-fit:cover;object-position:center 22%;display:block}
+.av img:not([src]){visibility:hidden}
+.trombi{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:14px;margin:0 0 20px}
+.face{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;text-decoration:none;color:inherit;min-width:0}
+.face .av{width:92px;height:92px;font-size:26px}
+.face b{font-size:14px;line-height:1.2;overflow-wrap:anywhere}
+.face .tag{font-size:11px}
+.face.dim{opacity:.45}
+.perso{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.perso .av{width:48px;height:48px;font-size:15px;background:color-mix(in srgb,var(--hero-ink) 14%,transparent)}
+.perso .pt{flex:1;min-width:0}
+.perso p{flex:1 1 100%}
+.wsdrop .pending .tag.pg{padding:3px 6px;font-size:12px}
+.wsgrid.people{grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr))}
+.wcard.cast .nophoto{aspect-ratio:4/5}
+.trombi{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+@media (max-width:600px){.wcard.cast .gal .ph.main,.wcard.cast .nophoto{aspect-ratio:1/1}.face .av{width:76px;height:76px}}

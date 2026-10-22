@@ -3,7 +3,7 @@
 // et un sous-dossier WORKSPACE/<Rubrique> pour les photos et documents déposés.
 const WS_RUBRIQUES = ['Brief', 'Lieux', 'Casting', 'Équipe & prestataires', 'Budget & devis', 'Planning', 'Références', 'Divers'];
 const WS_STATUTS = ['proposé', 'en option', 'retenu', 'écarté', 'à relancer', 'info'];
-const WS_HEADERS = ['ID', 'Rubrique', 'Titre', 'Prestataire / source', 'Prix', 'Montant (€)', 'Résumé', 'Détails', 'Points forts', 'Vigilance', 'Statut', 'Photos', 'Fichiers', 'Liens', 'Message d\'origine', 'Ajouté le', 'Ajouté par', 'Notes', 'Dépôt'];
+const WS_HEADERS = ['ID', 'Rubrique', 'Titre', 'Prestataire / source', 'Prix', 'Montant (€)', 'Résumé', 'Détails', 'Points forts', 'Vigilance', 'Statut', 'Photos', 'Fichiers', 'Liens', 'Message d\'origine', 'Ajouté le', 'Ajouté par', 'Notes', 'Dépôt', 'Cadrage'];
 const WS_FIL_HEADERS = ['Date', 'Par', 'Résumé', 'Éléments', 'Dépôt'];
 
 function wsProject(code) {
@@ -34,6 +34,13 @@ function wsSpreadsheet(pr) {
   return ss;
 }
 
+/** Ajoute les colonnes manquantes (tableaux créés avant une évolution). */
+function wsEnsureCols(sh) {
+  const h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  WS_HEADERS.forEach(k => { if (h.indexOf(k) < 0) { h.push(k); sh.getRange(1, h.length).setValue(k).setFontWeight('bold'); } });
+  return h;
+}
+
 function wsParse(v) { if (!v) return null; try { return JSON.parse(v); } catch (e) { return null; } }
 function wsList(v) { const j = wsParse(v); if (Array.isArray(j)) return j; return String(v || '').split(/\s*[,\n]\s*/).filter(Boolean); }
 
@@ -48,7 +55,7 @@ function wsItems(ss) {
       prix: o['Prix'], montant: o['Montant (€)'] === '' ? null : Number(o['Montant (€)']), resume: o['Résumé'],
       details: wsParse(o['Détails']) || {}, points_forts: wsList(o['Points forts']), vigilance: wsList(o['Vigilance']),
       statut: o['Statut'] || 'proposé', photos: wsList(o['Photos']), fichiers: wsList(o['Fichiers']), liens: wsList(o['Liens']),
-      source: o['Message d\'origine'], ajoute_le: o['Ajouté le'], ajoute_par: o['Ajouté par'], notes: o['Notes'], depot: o['Dépôt'],
+      source: o['Message d\'origine'], ajoute_le: o['Ajouté le'], ajoute_par: o['Ajouté par'], notes: o['Notes'], depot: o['Dépôt'], cadrage: wsParse(o['Cadrage']),
     };
   });
 }
@@ -90,13 +97,21 @@ function wsUpdate(p, user) {
   const pr = wsProject(p.code);
   const ss = wsSpreadsheet(pr);
   const sh = ss.getSheetByName('Éléments');
+  const h = wsEnsureCols(sh);
   const it = wsItems(ss).find(x => x.id === p.id);
   if (!it) throw new Error('Élément introuvable');
-  const h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
   const set = (col, v) => sh.getRange(it.row, h.indexOf(col) + 1).setValue(v);
   if (p.statut !== undefined) { if (WS_STATUTS.indexOf(p.statut) < 0) throw new Error('Statut inconnu'); set('Statut', p.statut); }
   if (p.notes !== undefined) set('Notes', String(p.notes).slice(0, 5000));
   if (p.rubrique !== undefined && WS_RUBRIQUES.indexOf(p.rubrique) >= 0) set('Rubrique', p.rubrique);
+  if (Array.isArray(p.add_photos) && p.add_photos.length) {   // photo ajoutée à la main : devient la photo principale
+    const ids = p.add_photos.filter(id => { try { return /^image\//.test(DriveApp.getFileById(id).getMimeType()); } catch (e) { return false; } }).slice(0, 10);
+    set('Photos', JSON.stringify(uniq(ids.concat(it.photos))));
+    set('Cadrage', '');
+    const dest = subfolder(subfolder(wsProject(p.code).folder, 'WORKSPACE'), it.rubrique || 'Divers');
+    ids.forEach((id, n) => { try { const f = DriveApp.getFileById(id); f.moveTo(dest); f.setName(String(it.titre).replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60) + ' — photo ' + (n + 1) + ((f.getName().match(/\.[A-Za-z0-9]{2,5}$/) || [''])[0])); } catch (e) {} });
+    ss.getSheetByName('Fil').appendRow([new Date(), user.email, 'Photo ajoutée : ' + it.titre, it.id, '']);
+  }
   if (p.statut !== undefined) ss.getSheetByName('Fil').appendRow([new Date(), user.email, it.titre + ' → ' + p.statut, it.id, '']);
   return { ok: true };
 }
@@ -106,7 +121,7 @@ function wsThumbs(p) {
   const pr = wsProject(p.code);
   const allowed = {};
   const ssT = wsSpreadsheet(pr);
-  wsItems(ssT).forEach(it => it.photos.concat(it.fichiers).forEach(id => allowed[id] = 1));
+  wsItems(ssT).forEach(it => { it.photos.concat(it.fichiers).forEach(id => allowed[id] = 1); if (it.cadrage && it.cadrage.id) allowed[it.cadrage.id] = 1; });
   const fi = wsFicheGet(ssT); if (fi && fi.images) fi.images.forEach(id => allowed[id] = 1);
   const size = Math.min(1600, Math.max(200, Number(p.size) || 480));
   const out = {}, cache = CacheService.getScriptCache();
@@ -164,6 +179,12 @@ const WS_TOOL = {
             vigilance: { type: 'array', items: { type: 'string' }, description: 'Points à vérifier ou risques (prix hors taxes ?, frais en plus, dispo non confirmée…)' },
             photos: { type: 'array', items: { type: 'string' }, description: 'file_id des images qui montrent CET élément' },
             fichiers: { type: 'array', items: { type: 'string' }, description: 'file_id des documents (PDF, devis…) liés à cet élément' },
+            cadrage: {
+              type: 'object',
+              description: "Quand la photo de cet élément est une partie d'une image plus grande (planche casting, page de PDF, capture avec plusieurs personnes ou lieux) : le rectangle qui contient SA photo, en pixels de cette image (dimensions données avec l'image). Pour un talent/personnage : cadre la photo de la personne (visage et buste), sans le texte autour. Ne pas remplir si une photo dédiée existe déjà dans photos.",
+              properties: { file_id: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, largeur: { type: 'number' }, hauteur: { type: 'number' } },
+              required: ['file_id', 'x', 'y', 'largeur', 'hauteur'],
+            },
             liens: { type: 'array', items: { type: 'string' } },
             statut: { type: 'string', enum: WS_STATUTS },
           },
@@ -208,14 +229,20 @@ function wsIngest(p, user) {
 
   const content = [];
   let images = 0;
+  const dims = {};
   const fileNotes = [];
   files.forEach(fl => {
     let f; try { f = DriveApp.getFileById(fl.id); } catch (e) { return; }
     const mt = f.getMimeType();
     fileNotes.push('- ' + f.getName() + ' (' + mt + ') file_id ' + fl.id);
-    if (/^image\//.test(mt) && images < 12) {
-      const b = driveThumb(fl.id, 1600) || (/^image\/(jpeg|png|gif|webp)$/.test(mt) && f.getSize() < 4500000 ? f.getBlob() : null);
-      if (b) { content.push({ type: 'text', text: 'Image file_id ' + fl.id + ' (' + f.getName() + ') :' }); content.push({ type: 'image', source: { type: 'base64', media_type: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) } }); images++; }
+    if (/^image\//.test(mt) && images < 24) {
+      const b = driveThumb(fl.id, 1568) || (/^image\/(jpeg|png|gif|webp)$/.test(mt) && f.getSize() < 4500000 ? f.getBlob() : null);
+      if (b) {
+        const bytes = b.getBytes(), d = dkImageSize(bytes);
+        dims[fl.id] = d;
+        content.push({ type: 'text', text: 'Image file_id ' + fl.id + ' (' + f.getName() + ') — ' + d[0] + ' × ' + d[1] + ' px :' });
+        content.push({ type: 'image', source: { type: 'base64', media_type: b.getContentType(), data: Utilities.base64Encode(bytes) } }); images++;
+      }
     } else if (mt === 'application/pdf' && f.getSize() < 10000000) {
       content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: Utilities.base64Encode(f.getBlob().getBytes()) }, title: f.getName() + ' — file_id ' + fl.id });
     } else if (/wordprocessingml|msword|text\//.test(mt)) {
@@ -223,7 +250,7 @@ function wsIngest(p, user) {
     }
   });
   const linkTexts = urls.map(u => '### ' + u + '\n' + wsFetchLink(u)).join('\n\n');
-  const known = existing.map(it => '- ' + it.id + ' | ' + it.rubrique + ' | ' + it.titre + ' | ' + (it.prestataire || '') + ' | ' + (it.prix || '')).join('\n') || '(vide)';
+  const known = existing.map(it => '- ' + it.id + ' | ' + it.rubrique + ' | ' + it.titre + ' | ' + (it.prestataire || '') + ' | ' + (it.prix || '') + ((it.photos.length || it.cadrage) ? '' : ' | SANS PHOTO')).join('\n') || '(vide)';
   content.unshift({ type: 'text', text:
     'Projet : ' + pr.code + ' — ' + (pr.row['Nom du projet'] || '') + ' — client : ' + (pr.row['Client'] || '') + ' — équipe : ' + (pr.row['Équipe'] || '') + '\n\n' +
     'Fiche projet actuelle (JSON) :\n' + JSON.stringify(wsFicheGet(ss) || {}) + '\n\n' +
@@ -239,6 +266,9 @@ function wsIngest(p, user) {
     "Crée un élément par chose distincte : chaque lieu proposé, chaque talent, chaque prestataire, chaque devis, le brief, une date de planning.",
     "Si une chose existe déjà dans le workspace (même lieu, même talent, même prestataire), utilise action=maj avec son ID plutôt que de créer un doublon.",
     "Associe chaque photo à l'élément qu'elle montre (par file_id). Une photo sans élément clair va dans l'élément le plus proche ou dans Divers.",
+    "Si un élément existant marqué SANS PHOTO apparaît sur une image du dépôt, complète-le (action=maj, son ID) avec photos ou cadrage.",
+    "Les images nommées « … — page N » sont des pages de PDF rendues en image. Ne les mets pas dans photos : sers-t'en pour lire et pour cadrage.",
+    "Chaque talent, personnage ou personne de casting doit avoir sa photo : photo dédiée dans photos, ou sinon un cadrage sur la planche, la page ou la capture où il apparaît (rectangle serré sur SA photo, en pixels). Fais de même pour un lieu montré dans une page de PDF.",
     "Recopie les prix exactement (HT/TTC, unité, inclus/exclus). N'invente rien : si une info manque, mets-la dans vigilance.",
     "Statut par défaut : « proposé » pour une proposition (lieu, talent, prestataire, devis) et « info » pour le reste (brief, planning, référence).",
     "Si le dépôt est un brief, une note d'intention ou un traitement : remplis aussi fiche_projet (fiche complète mise à jour) en plus de l'élément « Brief ». Pour les autres dépôts, ne renvoie fiche_projet que si la vision d'ensemble change (nouvelle date clé, nouveau personnage, budget…).",
@@ -258,14 +288,25 @@ function wsIngest(p, user) {
 
   const depotId = 'D' + Utilities.formatDate(new Date(), TZ, 'yyMMddHHmmss');
   const sh = ss.getSheetByName('Éléments');
-  const h = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  const h = wsEnsureCols(sh);
   const usedFiles = {};
+  const crop = (c) => {   // pixels → fractions de l'image, avec une petite marge
+    if (!c || !c.file_id || !dims[c.file_id] || !files.some(f => f.id === c.file_id)) return '';
+    const W = dims[c.file_id][0], H = dims[c.file_id][1];
+    let x = c.x / W, y = c.y / H, w = c.largeur / W, hh = c.hauteur / H;
+    if (!(w > 0.01 && hh > 0.01)) return '';
+    const mx = w * 0.06, my = hh * 0.06;
+    x = Math.max(0, x - mx); y = Math.max(0, y - my); w = Math.min(1 - x, w + 2 * mx); hh = Math.min(1 - y, hh + 2 * my);
+    const r = v => Math.round(v * 10000) / 10000;
+    return JSON.stringify({ id: c.file_id, x: r(x), y: r(y), w: r(w), h: r(hh) });
+  };
   const touched = [];
   (out.elements || []).forEach((el, i) => {
     const rub = WS_RUBRIQUES.indexOf(el.rubrique) >= 0 ? el.rubrique : 'Divers';
     const photos = (el.photos || []).filter(id => files.some(f => f.id === id));
     const docs = (el.fichiers || []).filter(id => files.some(f => f.id === id));
-    photos.concat(docs).forEach(id => { if (!usedFiles[id]) usedFiles[id] = { rub: rub, titre: el.titre }; });
+    const cad = crop(el.cadrage);
+    photos.concat(docs).concat(cad ? [el.cadrage.file_id] : []).forEach(id => { if (!usedFiles[id]) usedFiles[id] = { rub: rub, titre: el.titre }; });
     const prev = el.action === 'maj' && el.id ? existing.find(x => x.id === el.id) : null;
     if (prev) {
       const set = (col, v) => { if (v !== undefined && v !== null && v !== '') sh.getRange(prev.row, h.indexOf(col) + 1).setValue(v); };
@@ -276,6 +317,7 @@ function wsIngest(p, user) {
       set('Photos', JSON.stringify(uniq(prev.photos.concat(photos))));
       set('Fichiers', JSON.stringify(uniq(prev.fichiers.concat(docs))));
       set('Liens', JSON.stringify(uniq(prev.liens.concat(el.liens || []))));
+      if (cad && !prev.photos.length) set('Cadrage', cad);
       set('Message d\'origine', (String(prev.source || '') + '\n\n——— ' + today() + ' ———\n' + text).slice(-45000));
       touched.push(prev.titre + ' (mis à jour)');
     } else {
@@ -285,7 +327,7 @@ function wsIngest(p, user) {
         'Montant (€)': typeof el.montant_eur === 'number' ? el.montant_eur : '', 'Résumé': el.resume || '',
         'Détails': JSON.stringify(el.details || {}), 'Points forts': JSON.stringify(el.points_forts || []), 'Vigilance': JSON.stringify(el.vigilance || []),
         'Statut': WS_STATUTS.indexOf(el.statut) >= 0 ? el.statut : 'proposé', 'Photos': JSON.stringify(photos), 'Fichiers': JSON.stringify(docs),
-        'Liens': JSON.stringify(el.liens || []), 'Message d\'origine': text.slice(0, 45000), 'Ajouté le': new Date(), 'Ajouté par': user.email, 'Notes': '', 'Dépôt': depotId,
+        'Liens': JSON.stringify(el.liens || []), 'Message d\'origine': text.slice(0, 45000), 'Ajouté le': new Date(), 'Ajouté par': user.email, 'Notes': '', 'Dépôt': depotId, 'Cadrage': cad,
       };
       sh.appendRow(h.map(k => row[k] !== undefined ? row[k] : ''));
       touched.push(el.titre);

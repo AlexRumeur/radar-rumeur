@@ -6,13 +6,13 @@
   const { esc } = T;
   const ICON = { Brief: "📝", Lieux: "📍", Casting: "🎭", "Équipe & prestataires": "🤝", "Budget & devis": "💶", Planning: "🗓", Références: "🖼", Divers: "📎" };
   const ST_CLS = { "proposé": "", "en option": "warn", "retenu": "ok", "écarté": "dim", "à relancer": "hot", "info": "" };
-  let ws = { code: "", data: null, loading: false, filter: "Toutes", pending: [], busy: false, thumbs: {}, big: {}, last: null, err: "" };
+  let ws = { code: "", data: null, loading: false, filter: "Toutes", pending: [], busy: false, thumbs: {}, big: {}, src: {}, crops: {}, last: null, err: "" };
 
   function el() { return document.getElementById("v-workspace"); }
 
   async function load(code, force) {
     if (ws.loading) return;
-    if (ws.code !== code) ws = { code, data: null, loading: false, filter: "Toutes", pending: [], busy: false, thumbs: {}, big: {}, last: null, err: "" };
+    if (ws.code !== code) ws = { code, data: null, loading: false, filter: "Toutes", pending: [], busy: false, thumbs: {}, big: {}, src: {}, crops: {}, last: null, err: "" };
     if (ws.data && !force) return;
     ws.loading = true; ws.err = "";
     try { ws.data = (await T.api("ws_get", { code })).data; }
@@ -57,10 +57,10 @@
           <ol>
             <li><b>Un dépôt = un sujet.</b> Un mail de lieux, le brief, une proposition de casting, un devis… Déposez-les séparément : le rangement est plus précis.</li>
             <li><b>Collez le texte tel quel</b> dans la zone ci-dessous : mail complet (avec la signature du prestataire), message WhatsApp, notes d'appel. Les liens collés sont ouverts et lus.</li>
-            <li><b>Ajoutez les fichiers</b> : photos, PDF, Word. Bouton « Ajouter des fichiers », glisser-déposer, ou <b>Cmd+V</b> pour coller une capture d'écran (le texte de la capture est lu).</li>
+            <li><b>Ajoutez les fichiers</b> : photos, PDF, Word. Bouton « Ajouter des fichiers », glisser-déposer, ou <b>Cmd+V</b> pour coller une capture d'écran (le texte de la capture est lu). Les pages de PDF qui contiennent des images sont lues aussi : chaque talent ou lieu présenté sur une planche reçoit sa propre photo.</li>
             <li><b>Cliquez « Analyser et ranger »</b> et patientez 30 s à 1 min. L'assistant crée une fiche par lieu, talent, prestataire ou devis, avec photos, prix exact, infos clés, points forts et points à vérifier. Les fichiers sont rangés dans le Drive du projet (dossier WORKSPACE).</li>
             <li><b>Une nouvelle réponse sur un sujet existant</b> (nouveau prix, autres photos du même lieu) ? Déposez-la : la fiche existante est complétée, sans doublon.</li>
-            <li><b>Décidez sur les fiches</b> : changez le statut (proposé → en option → retenu / écarté) et ajoutez une note pour l'équipe. Cliquez une photo pour l'agrandir. Dès qu'il y a deux propositions ou plus, un tableau comparatif apparaît.</li>
+            <li><b>Décidez sur les fiches</b> : changez le statut (proposé → en option → retenu / écarté) et ajoutez une note pour l'équipe. Cliquez une photo pour l'agrandir. Une photo manque ou est mal cadrée ? « + Photo » sur la fiche pour en ajouter une. Dès qu'il y a deux propositions ou plus, un tableau comparatif apparaît.</li>
             <li><b>Pour aller plus loin</b>, « Faire le point » demande un récap à l'assistant, et « Prez depuis le workspace » prépare une présentation Rumeur avec les photos.</li>
           </ol>
           <p class="mini">Vérifiez toujours les prix et les dates importantes dans le message d'origine (en bas de chaque fiche) avant de vous engager. Rien n'est envoyé aux prestataires : le workspace sert seulement à ranger et décider.</p>
@@ -70,12 +70,14 @@
       <section class="wsdrop" id="ws-drop">
         <label for="ws-text" class="drop-h">Déposer dans le workspace</label>
         <textarea id="ws-text" rows="4" placeholder="Collez un mail, un message WhatsApp, un lien, des notes… et ajoutez photos, captures d'écran (Cmd+V) ou PDF. L'assistant lit tout et range en fiches."></textarea>
-        <div class="pending" id="ws-pending">${ws.pending.map((f, i) => `<span class="tag ${f.status === "error" ? "hot" : ""}">${f.preview ? `<img src="${f.preview}" alt="">` : "📎"} ${esc(f.name)}${f.status === "uploading" ? " …" : ""}<button type="button" data-ws-unpend="${i}" aria-label="Retirer">×</button></span>`).join("")}</div>
+        <div class="pending" id="ws-pending">${ws.pending.map((f, i) => `<span class="tag ${f.status === "error" ? "hot" : ""} ${f.page ? "pg" : ""}" title="${esc(f.name)}">${f.preview ? `<img src="${f.preview}" alt="">` : "📎"} ${f.page ? "p." + f.page : esc(f.name)}${f.status === "uploading" ? " …" : ""}<button type="button" data-ws-unpend="${i}" aria-label="Retirer">×</button></span>`).join("")}</div>
         <div class="drop-bar">
           <span><button type="button" class="btn ghost small" id="ws-attach">Ajouter des fichiers</button> <span class="mini">ou glissez-les ici · captures : Cmd+V</span></span>
-          <button type="button" class="btn primary" id="ws-go" ${ws.busy || ws.pending.some(f => f.status === "uploading") ? "disabled" : ""}>${ws.busy ? "L'assistant range… (30 s à 1 min)" : "Analyser et ranger"}</button>
+          <button type="button" class="btn primary" id="ws-go" ${ws.busy || ws.reading || ws.pending.some(f => f.status === "uploading") ? "disabled" : ""}>${ws.busy ? "L'assistant range… (30 s à 1 min)" : "Analyser et ranger"}</button>
         </div>
+        ${ws.reading ? `<p class="mini">${esc(ws.reading)}</p>` : ""}
         <input type="file" id="ws-file" multiple hidden accept="image/*,application/pdf,.doc,.docx,.txt">
+        <input type="file" id="ws-photo-file" multiple hidden accept="image/*">
       </section>
 
       ${ws.last ? `<section class="lastdrop"><p><b>Dernier dépôt :</b> ${esc(ws.last.resume || "")}</p>
@@ -99,6 +101,7 @@
     </div>`;
     wire();
     fetchThumbs();
+    fetchCrops();
   }
 
   function ficheView(f, items) {
@@ -120,7 +123,7 @@
         ${block("Thèmes", L(f.themes).length ? `<div class="fchips">${chips(f.themes)}</div>` : "")}
         ${block("Ton & univers", L(f.ton).length ? `<div class="fchips">${chips(f.ton, "alt")}</div>` : "")}
         ${block("Livrables", L(f.livrables).length ? `<ul>${L(f.livrables).map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "")}
-        ${block("Personnages" + (nCast ? ` · ${nCast} proposition(s) casting` : ""), L(f.personnages).length ? `<div class="persos">${L(f.personnages).map(p => `<div class="perso"><b>${esc(p.nom || "")}</b>${p.role ? `<span>${esc(p.role)}</span>` : ""}${p.description ? `<p>${esc(p.description)}</p>` : ""}</div>`).join("")}</div>` : "", "wide")}
+        ${block("Personnages" + (nCast ? ` · ${nCast} proposition(s) casting` : ""), L(f.personnages).length ? `<div class="persos">${L(f.personnages).map(p => `<div class="perso">${avatar(castFor(items, p.nom))}<div class="pt"><b>${esc(p.nom || "")}</b>${p.role ? `<span>${esc(p.role)}</span>` : ""}</div>${p.description ? `<p>${esc(p.description)}</p>` : ""}</div>`).join("")}</div>` : "", "wide")}
         ${block("Lieux recherchés" + (nLieux ? ` · ${nLieux} proposé(s)` : ""), L(f.lieux_recherches).length ? `<ul>${L(f.lieux_recherches).map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "")}
         ${block("Budget", f.budget ? `<p class="big-num">${esc(f.budget)}</p>` : "")}
         ${block("Équipe", L(f.equipe).length ? `<ul class="team">${L(f.equipe).map(e => `<li><b>${esc(e.nom || "")}</b> <span class="mini">${esc(e.role || "")}</span></li>`).join("")}</ul>` : "")}
@@ -136,15 +139,21 @@
     const compare = props.length >= 2 ? `<div class="cmp-wrap"><table class="cmp"><thead><tr><th>${esc(rub === "Casting" ? "Talent" : "Proposition")}</th><th>Prix</th><th>Statut</th><th>Points forts</th><th>Vigilance</th></tr></thead><tbody>${
       props.slice().sort((a, b) => (a.montant ?? 1e12) - (b.montant ?? 1e12)).map(i => `<tr class="${i.statut === "écarté" ? "dim" : ""}"><td><a href="#card-${esc(i.id)}" class="plain"><b>${esc(i.titre)}</b></a><br><span class="mini">${esc(i.prestataire || "")}</span></td><td>${esc(i.prix || "—")}</td><td><span class="tag ${ST_CLS[i.statut] || ""}">${esc(i.statut)}</span></td><td>${(i.points_forts || []).slice(0, 2).map(esc).join("<br>")}</td><td>${(i.vigilance || []).slice(0, 2).map(esc).join("<br>")}</td></tr>`).join("")
     }</tbody></table></div>` : "";
-    return `<section class="blk"><h3>${ICON[rub] || ""} ${esc(rub)} <small>${list.length} fiche(s)</small></h3>${compare}
-      <div class="wsgrid">${list.map(i => card(i, statuts)).join("")}</div></section>`;
+    const faces = rub === "Casting" && list.some(hasPhoto) ? list.filter(i => i.statut !== "info") : [];
+    const strip = faces.length ? `<div class="trombi">${faces.map(i => `<a class="plain face ${i.statut === "écarté" ? "dim" : ""}" href="#card-${esc(i.id)}">${avatar(i)}<b>${esc(shortName(i.titre))}</b><span class="tag ${ST_CLS[i.statut] || ""}">${esc(i.statut)}</span></a>`).join("")}</div>` : "";
+    return `<section class="blk"><h3>${ICON[rub] || ""} ${esc(rub)} <small>${list.length} fiche(s)</small></h3>${strip}${compare}
+      <div class="wsgrid ${rub === "Casting" ? "people" : ""}">${list.map(i => card(i, statuts)).join("")}</div></section>`;
   }
 
   function card(i, statuts) {
     const photos = i.photos || [];
+    const cad = i.cadrage && i.cadrage.id ? i.cadrage : null;
+    const tiles = (cad ? [`<button type="button" class="ph main" data-ws-photo="${esc(cad.id)}" aria-label="Voir la planche d'origine">${cropImg(cad)}</button>`] : [])
+      .concat(photos.slice(0, cad ? 4 : 5).map((p, n) => `<button type="button" class="ph ${n === 0 && !cad ? "main" : ""}" data-ws-photo="${esc(p)}" data-ws-item="${esc(i.id)}" aria-label="Agrandir la photo"><img data-thumb="${esc(p)}" alt="" ${ws.thumbs[p] ? `src="${ws.thumbs[p]}"` : ""}></button>`));
+    const people = i.rubrique === "Casting";
     const det = Object.keys(i.details || {}).filter(k => i.details[k]);
-    return `<article class="wcard ${i.statut === "écarté" ? "dim" : ""}" id="card-${esc(i.id)}">
-      ${photos.length ? `<div class="gal ${photos.length > 1 ? "multi" : ""}">${photos.slice(0, 5).map((p, n) => `<button type="button" class="ph ${n === 0 ? "main" : ""}" data-ws-photo="${esc(p)}" data-ws-item="${esc(i.id)}" aria-label="Agrandir la photo"><img data-thumb="${esc(p)}" alt="" ${ws.thumbs[p] ? `src="${ws.thumbs[p]}"` : ""}></button>`).join("")}${photos.length > 5 ? `<span class="more-ph">+${photos.length - 5}</span>` : ""}</div>` : ""}
+    return `<article class="wcard ${i.statut === "écarté" ? "dim" : ""} ${people ? "cast" : ""}" id="card-${esc(i.id)}">
+      ${tiles.length ? `<div class="gal ${tiles.length > 1 ? "multi" : ""}">${tiles.join("")}${photos.length > 5 ? `<span class="more-ph">+${photos.length - 5}</span>` : ""}</div>` : (people && i.statut !== "info" ? `<button type="button" class="nophoto" data-ws-addphoto="${esc(i.id)}"><span>${esc(initials(i.titre))}</span>Ajouter sa photo</button>` : "")}
       <div class="wbody">
         <div class="whead"><h4>${esc(i.titre)}</h4>${i.prix ? `<span class="price">${esc(i.prix)}</span>` : ""}</div>
         ${i.prestataire ? `<p class="mini">${esc(i.prestataire)}</p>` : ""}
@@ -155,12 +164,107 @@
         ${(i.fichiers || []).length || (i.liens || []).length ? `<p class="links">${(i.fichiers || []).map((f, n) => `<a href="https://drive.google.com/file/d/${esc(f)}/view" target="_blank" rel="noopener">Document ${n + 1} ↗</a>`).join(" ")} ${(i.liens || []).map(u => /^https?:\/\//.test(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32))} ↗</a>` : "").join(" ")}</p>` : ""}
         <div class="wfoot">
           <select data-ws-status="${esc(i.id)}" aria-label="Statut de ${esc(i.titre)}">${statuts.map(s => `<option${s === i.statut ? " selected" : ""}>${esc(s)}</option>`).join("")}</select>
+          <button type="button" class="btn ghost small" data-ws-addphoto="${esc(i.id)}">${tiles.length ? "+ Photo" : "Ajouter une photo"}</button>
           <span class="mini">${esc(i.ajoute_le || "")} · ${esc(String(i.ajoute_par || "").split("@")[0])}</span>
         </div>
         <textarea class="notes" data-ws-notes="${esc(i.id)}" rows="1" placeholder="Note de l'équipe…">${esc(i.notes || "")}</textarea>
         ${i.source ? `<details class="src"><summary>Message d'origine</summary><pre>${esc(i.source)}</pre></details>` : ""}
       </div>
     </article>`;
+  }
+
+  /* ——— Photos des personnes : photo dédiée ou cadrage sur une planche / page de PDF ——— */
+  function hasPhoto(i) { return !!(i && ((i.photos || []).length || (i.cadrage && i.cadrage.id))); }
+  function norm(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+  function shortName(t) { return String(t || "").split(/\s+[—–-]\s+/)[0]; }
+  function initials(t) { return shortName(t).split(/\s+/).slice(0, 2).map(w => w[0] || "").join("").toUpperCase(); }
+  function castFor(items, nom) {
+    const k = norm(nom).split(/\s+/)[0]; if (!k) return null;
+    return items.find(i => i.rubrique === "Casting" && norm(shortName(i.titre)).split(/\s+/)[0] === k) || null;
+  }
+  function cropKey(c) { return [c.id, c.x, c.y, c.w, c.h].join(":"); }
+  function cropImg(c) { return `<img data-crop="${esc(JSON.stringify(c))}" alt="" ${ws.crops[cropKey(c)] ? `src="${ws.crops[cropKey(c)]}"` : ""}>`; }
+  function avatar(i) {
+    if (!i) return "";
+    const inner = i.cadrage && i.cadrage.id ? cropImg(i.cadrage)
+      : (i.photos || []).length ? `<img data-thumb="${esc(i.photos[0])}" alt="" ${ws.thumbs[i.photos[0]] ? `src="${ws.thumbs[i.photos[0]]}"` : ""}>`
+      : `<span>${esc(initials(i.titre))}</span>`;
+    return `<span class="av">${inner}</span>`;
+  }
+  async function fetchCrops() {
+    const imgs = [...document.querySelectorAll("#v-workspace img[data-crop]")];
+    if (!imgs.length) return;
+    const need = [...new Set(imgs.map(im => JSON.parse(im.dataset.crop).id).filter(id => !ws.src[id]))];
+    for (let k = 0; k < need.length; k += 3) {
+      try { Object.assign(ws.src, (await T.api("ws_thumbs", { code: ws.code, ids: need.slice(k, k + 3), size: 1568 })).thumbs || {}); } catch (e) { break; }
+    }
+    for (const im of document.querySelectorAll("#v-workspace img[data-crop]")) {
+      const c = JSON.parse(im.dataset.crop), key = cropKey(c);
+      if (!ws.crops[key] && ws.src[c.id]) ws.crops[key] = await cropData(ws.src[c.id], c).catch(() => "");
+      if (ws.crops[key]) im.src = ws.crops[key];
+    }
+  }
+  function cropData(src, c) {
+    return new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => {
+        const sx = c.x * img.naturalWidth, sy = c.y * img.naturalHeight, sw = c.w * img.naturalWidth, sh = c.h * img.naturalHeight;
+        const k = Math.min(1, 700 / Math.max(sw, sh));
+        const cv = document.createElement("canvas"); cv.width = Math.max(1, Math.round(sw * k)); cv.height = Math.max(1, Math.round(sh * k));
+        cv.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+        res(cv.toDataURL("image/jpeg", 0.88));
+      };
+      img.onerror = rej; img.src = src;
+    });
+  }
+
+  /* ——— PDF : les pages qui contiennent des images sont rendues en JPEG pour que l'assistant voie et cadre les photos ——— */
+  const PDFJS = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+  let pdfLib = null;
+  function loadPdfJs() {
+    if (!pdfLib) pdfLib = new Promise((res, rej) => {
+      const s = document.createElement("script"); s.src = PDFJS + "pdf.min.js";
+      s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.js"; res(window.pdfjsLib); };
+      s.onerror = () => { pdfLib = null; rej(new Error("lecteur PDF indisponible")); };
+      document.head.appendChild(s);
+    });
+    return pdfLib;
+  }
+  async function pdfPages(file) {
+    const lib = await loadPdfJs();
+    const doc = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const O = lib.OPS, IMG = [O.paintImageXObject, O.paintInlineImageXObject, O.paintImageXObjectRepeat, O.paintJpegXObject, O.paintImageMaskXObject].filter(x => x !== undefined);
+    const base = (file.name || "document.pdf").replace(/\.pdf$/i, "");
+    const out = [];
+    for (let n = 1; n <= doc.numPages && out.length < 15; n++) {
+      const page = await doc.getPage(n);
+      const ops = await page.getOperatorList();
+      if (!ops.fnArray.some(f => IMG.includes(f))) continue;
+      const v0 = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: 1568 / Math.max(v0.width, v0.height) });
+      const cv = document.createElement("canvas"); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+      const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.85));
+      if (blob) { const f = new File([blob], base + " — page " + n + ".jpg", { type: "image/jpeg" }); f.page = n; out.push(f); }
+    }
+    return out;
+  }
+
+  async function addPhotos(id, files) {
+    const it = ws.data && ws.data.items.find(x => x.id === id); if (!it) return;
+    T.toast("Envoi de la photo…");
+    try {
+      const ids = [];
+      for (const f of files.filter(f => /^image\//.test(f.type)).slice(0, 10)) {
+        const out = await T.api("upload", { file: { name: f.name || "photo.jpg", mimeType: f.type, data: await T.readB64(f) } });
+        ids.push(out.file.id);
+      }
+      if (!ids.length) { T.toast("Choisissez une image."); return; }
+      await T.api("ws_update", { code: ws.code, id, add_photos: ids });
+      it.photos = ids.concat(it.photos || []); it.cadrage = null;
+      T.toast("Photo ajoutée"); render();
+    } catch (e) { T.toast(e.message); }
   }
 
   async function fetchThumbs() {
@@ -188,18 +292,31 @@
     }
   }
 
+  async function upOne(f) {
+    const item = { name: f.name || "capture.png", status: "uploading", preview: "", page: f.page || 0 };
+    if (/^image\//.test(f.type)) { try { item.preview = URL.createObjectURL(f); } catch (e) {} }
+    ws.pending.push(item); render();
+    try {
+      const data = await T.readB64(f);
+      const out = await T.api("upload", { file: { name: item.name, mimeType: f.type || "application/octet-stream", data } });
+      Object.assign(item, { id: out.file.id, status: "ok" });
+    } catch (e) { item.status = "error"; T.toast(item.name + " : " + e.message); }
+    render();
+  }
   async function addFiles(files) {
     for (const f of files) {
       if (f.size > 20 * 1024 * 1024) { T.toast(f.name + " : 20 Mo maximum"); continue; }
-      const item = { name: f.name || "capture.png", status: "uploading", preview: "" };
-      if (/^image\//.test(f.type)) { try { item.preview = URL.createObjectURL(f); } catch (e) {} }
-      ws.pending.push(item); render();
-      try {
-        const data = await T.readB64(f);
-        const out = await T.api("upload", { file: { name: item.name, mimeType: f.type || "application/octet-stream", data } });
-        Object.assign(item, { id: out.file.id, status: "ok" });
-      } catch (e) { item.status = "error"; T.toast(item.name + " : " + e.message); }
-      render();
+      await upOne(f);
+      if (f.type === "application/pdf" || /\.pdf$/i.test(f.name || "")) {
+        ws.reading = "Lecture des pages illustrées de " + f.name + "…"; render();
+        try {
+          const pages = await pdfPages(f);
+          if (pages.length) ws.reading = pages.length + " page(s) illustrée(s) envoyée(s) pour retrouver les photos…";
+          render();
+          for (let k = 0; k < pages.length; k += 3) await Promise.all(pages.slice(k, k + 3).map(upOne));
+        } catch (e) { T.toast("Pages du PDF non lues (" + e.message + ") : le texte sera quand même analysé."); }
+        ws.reading = ""; render();
+      }
     }
   }
 
@@ -219,6 +336,7 @@
     }
     const at = document.getElementById("ws-attach"); if (at) at.onclick = () => document.getElementById("ws-file").click();
     const fi = document.getElementById("ws-file"); if (fi) fi.onchange = (e) => { addFiles([...e.target.files]); e.target.value = ""; };
+    const pf = document.getElementById("ws-photo-file"); if (pf) pf.onchange = (e) => { const fs = [...e.target.files]; e.target.value = ""; if (ws.photoFor && fs.length) addPhotos(ws.photoFor, fs); };
     const go = document.getElementById("ws-go");
     if (go) go.onclick = async () => {
       const text = (ws.draft || "").trim();
@@ -237,6 +355,7 @@
       root.addEventListener("click", (e) => {
         const f = e.target.closest("[data-ws-filter]"); if (f) { ws.filter = f.dataset.wsFilter; render(); return; }
         const u = e.target.closest("[data-ws-unpend]"); if (u) { ws.pending.splice(+u.dataset.wsUnpend, 1); render(); return; }
+        const ap = e.target.closest("[data-ws-addphoto]"); if (ap) { ws.photoFor = ap.dataset.wsAddphoto; document.getElementById("ws-photo-file").click(); return; }
         const p = e.target.closest("[data-ws-photo]"); if (p) { lightbox(p.dataset.wsPhoto); return; }
         if (e.target.closest("[data-ws-reload]")) { ws.data = null; ws.thumbs = ws.thumbs || {}; load(ws.code, true); render(); }
       });
