@@ -232,7 +232,7 @@
         <button type="button" class="btn small ghost" data-ask="${esc("Range un document dans le projet " + p["Code projet"] + " : ")}" data-noauto="1">Ajouter un doc</button></div>
       </article>`);
     return `<div class="in">
-      ${vhead("Gestion de projet", "Projets.", "Du brief à la livraison : dossiers, versions, retours client.", askBtn("Nouveau brief", "Nouveau projet : voici mes notes du call de brief :\n", "primary") + askBtn("Créer une prez", "Crée une présentation dans le modèle Rumeur pour le projet … (type : locations / moodboard / casting / storyboard). Je joins les photos.", "ghost") + askBtn("Retour client reçu", "Le client a fait un retour sur le projet ", "ghost"))}
+      ${vhead("Gestion de projet", "Projets.", "Du brief à la livraison. Chaque projet a son workspace : ouvrez-le pour y déposer mails, photos, devis et propositions, l'assistant les range en fiches.", askBtn("Nouveau brief", "Nouveau projet : voici mes notes du call de brief :\n", "primary") + askBtn("Créer une prez", "Crée une présentation dans le modèle Rumeur pour le projet … (type : locations / moodboard / casting / storyboard). Je joins les photos.", "ghost") + askBtn("Retour client reçu", "Le client a fait un retour sur le projet ", "ghost"))}
       <div class="kpis">
         <div class="kpi"><b>${P.length}</b><span>projets actifs</span></div>
         <div class="kpi ${late.length ? "hot" : ""}"><b>${late.length}</b><span>deadlines dépassées</span></div>

@@ -49,6 +49,22 @@
         </div>
       </header>
 
+      <details class="howto"${items.length ? "" : " open"}>
+        <summary>Comment ça marche ?</summary>
+        <div class="howto-body">
+          <ol>
+            <li><b>Un dépôt = un sujet.</b> Un mail de lieux, le brief, une proposition de casting, un devis… Déposez-les séparément : le rangement est plus précis.</li>
+            <li><b>Collez le texte tel quel</b> dans la zone ci-dessous : mail complet (avec la signature du prestataire), message WhatsApp, notes d'appel. Les liens collés sont ouverts et lus.</li>
+            <li><b>Ajoutez les fichiers</b> : photos, PDF, Word. Bouton « Ajouter des fichiers », glisser-déposer, ou <b>Cmd+V</b> pour coller une capture d'écran (le texte de la capture est lu).</li>
+            <li><b>Cliquez « Analyser et ranger »</b> et patientez 30 s à 1 min. L'assistant crée une fiche par lieu, talent, prestataire ou devis, avec photos, prix exact, infos clés, points forts et points à vérifier. Les fichiers sont rangés dans le Drive du projet (dossier WORKSPACE).</li>
+            <li><b>Une nouvelle réponse sur un sujet existant</b> (nouveau prix, autres photos du même lieu) ? Déposez-la : la fiche existante est complétée, sans doublon.</li>
+            <li><b>Décidez sur les fiches</b> : changez le statut (proposé → en option → retenu / écarté) et ajoutez une note pour l'équipe. Cliquez une photo pour l'agrandir. Dès qu'il y a deux propositions ou plus, un tableau comparatif apparaît.</li>
+            <li><b>Pour aller plus loin</b>, « Faire le point » demande un récap à l'assistant, et « Prez depuis le workspace » prépare une présentation Rumeur avec les photos.</li>
+          </ol>
+          <p class="mini">Vérifiez toujours les prix et les dates importantes dans le message d'origine (en bas de chaque fiche) avant de vous engager. Rien n'est envoyé aux prestataires : le workspace sert seulement à ranger et décider.</p>
+        </div>
+      </details>
+
       <section class="wsdrop" id="ws-drop">
         <label for="ws-text" class="drop-h">Déposer dans le workspace</label>
         <textarea id="ws-text" rows="4" placeholder="Collez un mail, un message WhatsApp, un lien, des notes… et ajoutez photos, captures d'écran (Cmd+V) ou PDF. L'assistant lit tout et range en fiches."></textarea>

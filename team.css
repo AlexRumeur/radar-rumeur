@@ -176,3 +176,9 @@ a.btn.primary{color:#fff}
 .lightbox{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:calc(20px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .lightbox img{max-width:100%;max-height:82vh;border-radius:8px;object-fit:contain}
 .lightbox p{color:#ddd}
+.howto{margin-top:20px;border:1px solid var(--line);border-radius:18px;padding:0 18px;background:var(--bg)}
+.howto summary{cursor:pointer;font-weight:600;padding:14px 0;list-style-position:inside}
+.howto[open] summary{border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.howto-body{padding:12px 0 16px;max-width:72ch}
+.howto ol{margin:0;padding-left:22px;display:grid;gap:8px;font-size:15px;line-height:1.45}
+.howto .mini{margin:12px 0 0}
