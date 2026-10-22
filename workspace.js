@@ -140,8 +140,12 @@
       props.slice().sort((a, b) => (a.montant ?? 1e12) - (b.montant ?? 1e12)).map(i => `<tr class="${i.statut === "écarté" ? "dim" : ""}"><td><a href="#card-${esc(i.id)}" class="plain"><b>${esc(i.titre)}</b></a><br><span class="mini">${esc(i.prestataire || "")}</span></td><td>${esc(i.prix || "—")}</td><td><span class="tag ${ST_CLS[i.statut] || ""}">${esc(i.statut)}</span></td><td>${(i.points_forts || []).slice(0, 2).map(esc).join("<br>")}</td><td>${(i.vigilance || []).slice(0, 2).map(esc).join("<br>")}</td></tr>`).join("")
     }</tbody></table></div>` : "";
     const faces = rub === "Casting" && list.some(hasPhoto) ? list.filter(i => i.statut !== "info") : [];
+    const all = (ws.data && ws.data.items) || [];
+    const pdfs = all.some(i => (i.fichiers || []).length);
+    const missing = list.filter(i => i.statut !== "info" && !hasPhoto(i)).length;
+    const finder = rub === "Casting" && missing && pdfs ? `<div class="finder"><p><b>${missing} personne(s) sans photo.</b> Leurs photos sont peut-être dans le brief ou la planche casting déjà déposés.</p><button type="button" class="btn primary small" data-ws-findphotos="1" ${ws.finding ? "disabled" : ""}>${ws.finding ? esc(ws.finding) : "Retrouver les photos dans les PDF"}</button></div>` : "";
     const strip = faces.length ? `<div class="trombi">${faces.map(i => `<a class="plain face ${i.statut === "écarté" ? "dim" : ""}" href="#card-${esc(i.id)}">${avatar(i)}<b>${esc(shortName(i.titre))}</b><span class="tag ${ST_CLS[i.statut] || ""}">${esc(i.statut)}</span></a>`).join("")}</div>` : "";
-    return `<section class="blk"><h3>${ICON[rub] || ""} ${esc(rub)} <small>${list.length} fiche(s)</small></h3>${strip}${compare}
+    return `<section class="blk"><h3>${ICON[rub] || ""} ${esc(rub)} <small>${list.length} fiche(s)</small></h3>${finder}${strip}${compare}
       <div class="wsgrid ${rub === "Casting" ? "people" : ""}">${list.map(i => card(i, statuts)).join("")}</div></section>`;
   }
 
@@ -251,6 +255,32 @@
     return out;
   }
 
+  async function findPhotos() {
+    const ids = [...new Set((ws.data.items || []).flatMap(i => i.fichiers || []))].slice(0, 4);
+    const pages = [];
+    try {
+      for (const id of ids) {
+        ws.finding = "Ouverture des PDF…"; render();
+        let f; try { f = (await T.api("ws_file", { code: ws.code, id })).file; } catch (e) { continue; }   // pas un PDF
+        const bin = atob(f.data), u8 = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u8[k] = bin.charCodeAt(k);
+        ws.finding = "Lecture des pages de " + f.name + "…"; render();
+        const imgs = await pdfPages(new File([u8], f.name, { type: "application/pdf" }));
+        for (let k = 0; k < imgs.length; k++) {
+          ws.finding = "Envoi des pages " + (pages.length + 1) + "…"; render();
+          const out = await T.api("upload", { file: { name: imgs[k].name, mimeType: "image/jpeg", data: await T.readB64(imgs[k]) } });
+          pages.push(out.file.id);
+        }
+      }
+      if (!pages.length) { T.toast("Aucune page avec des photos trouvée dans les PDF."); return; }
+      ws.finding = "L'assistant repère chaque personne (30 s à 1 min)…"; render();
+      const out = (await T.api("ws_photos", { code: ws.code, files: pages.slice(0, 20) })).data;
+      ws.data = out;
+      const n = (out.photos_trouvees || []).length;
+      T.toast(n ? n + " photo(s) retrouvée(s) : " + out.photos_trouvees.join(", ") : "Aucune photo retrouvée. Utilisez « Ajouter sa photo » sur chaque fiche.");
+    } catch (e) { T.toast(e.message); }
+    finally { ws.finding = ""; render(); }
+  }
+
   async function addPhotos(id, files) {
     const it = ws.data && ws.data.items.find(x => x.id === id); if (!it) return;
     T.toast("Envoi de la photo…");
@@ -355,6 +385,7 @@
       root.addEventListener("click", (e) => {
         const f = e.target.closest("[data-ws-filter]"); if (f) { ws.filter = f.dataset.wsFilter; render(); return; }
         const u = e.target.closest("[data-ws-unpend]"); if (u) { ws.pending.splice(+u.dataset.wsUnpend, 1); render(); return; }
+        if (e.target.closest("[data-ws-findphotos]")) { if (!ws.finding) findPhotos(); return; }
         const ap = e.target.closest("[data-ws-addphoto]"); if (ap) { ws.photoFor = ap.dataset.wsAddphoto; document.getElementById("ws-photo-file").click(); return; }
         const p = e.target.closest("[data-ws-photo]"); if (p) { lightbox(p.dataset.wsPhoto); return; }
         if (e.target.closest("[data-ws-reload]")) { ws.data = null; ws.thumbs = ws.thumbs || {}; load(ws.code, true); render(); }

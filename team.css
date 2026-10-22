@@ -244,3 +244,4 @@ a.btn.primary{color:#fff}
 .wcard.cast .nophoto{aspect-ratio:4/5}
 .trombi{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
 @media (max-width:600px){.wcard.cast .gal .ph.main,.wcard.cast .nophoto{aspect-ratio:1/1}.face .av{width:76px;height:76px}}
+.finder{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;background:var(--tile);border-radius:14px;padding:12px 16px;margin:0 0 18px}.finder p{margin:0;font-size:15px}
