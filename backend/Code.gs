@@ -30,6 +30,7 @@ const IDS = {
   facturesFournisseurs: '1J4mu0sJ7_Tmh6mUrEALAmoUaagUTLKTJ',
   cerveau: '1j0SS6GHynnCxDsXQjMi637gEt4HiEW6_',
   memoire: '1Cz-3PVb4uF3R5rUzM3RX9DLD2vI0g3KH3-XjcJE9rm4',
+  presentations: '1Yn2PPIcR0E9KwmQn5PkX_3sCh_xoz3Zw',
 };
 
 // Feuilles connues. writable=false : alimentées par les tâches automatiques
@@ -657,6 +658,9 @@ const TOOLS = [
   { name: 'signaler_achat', description: 'Signale qu\'un article de bureau manque (café, lait…), ou marque un article comme commandé (commande=true).', input_schema: { type: 'object', properties: { article: { type: 'string' }, commande: { type: 'boolean' } }, required: ['article'] } },
   { name: 'chercher_connaissances', description: "Cherche dans le CERVEAU RUMEUR (tarifs, références, process, présentations agence…) les documents qui contiennent ces mots. À utiliser dès qu'une question porte sur la façon de travailler de Rumeur, ses prix, ses clients, ses références. Ensuite lis le document avec lire_fichier.", input_schema: { type: 'object', properties: { mots: { type: 'string', description: '2 à 4 mots-clés' } }, required: ['mots'] } },
   { name: 'retenir', description: "Ajoute un fait durable à la MÉMOIRE RUMEUR (lue avant chaque conversation). À utiliser quand la personne dit « retiens que… », « note que… », « souviens-toi… », ou confirme une info utile à toute l'équipe (préférence client, tarif, contact, règle). Une phrase courte et autonome.", input_schema: { type: 'object', properties: { fait: { type: 'string' } }, required: ['fait'] } },
+  { name: 'guide_presentation', description: "Renvoie le guide du modèle de présentation Rumeur (45 diapositives : usages, cadres photo, clés de texte, format de la spec). À lire AVANT de préparer une présentation.", input_schema: { type: 'object', properties: {} } },
+  { name: 'voir_images', description: "Affiche jusqu'à 16 images du Drive (vignettes) pour les regarder avant de les placer : décrire, choisir, paysage/portrait.", input_schema: { type: 'object', properties: { file_ids: { type: 'array', items: { type: 'string' } } }, required: ['file_ids'] } },
+  { name: 'creer_presentation', description: "Construit un .pptx dans le modèle Rumeur (s'ouvre dans Keynote) à partir d'une spec (voir guide_presentation). images = file_id Drive. code = projet (enregistré dans 2.DA & PROPOSITIONS), sinon dossier 07 · PRÉSENTATIONS.", input_schema: { type: 'object', properties: { titre: { type: 'string' }, code: { type: 'string' }, campaign: { type: 'array', items: { type: 'string' } }, brand: { type: 'string' }, slides: { type: 'array', items: { type: 'object' } }, remplace_file_id: { type: 'string', description: 'file_id d’une version précédente à mettre à la corbeille' } }, required: ['titre', 'brand', 'slides'] } },
   { name: 'noter_idee', description: 'Ajoute une idée de skill / amélioration / bug à la boîte à idées.', input_schema: { type: 'object', properties: { description: { type: 'string' }, pole: { type: 'string' } }, required: ['description'] } },
 ];
 
@@ -688,6 +692,9 @@ function runTool(name, input, user) {
     case 'noter_idee': return addIdea(i.description, i.pole, user);
     case 'chercher_connaissances': return searchBrain(i.mots);
     case 'retenir': return rememberFact(i.fait, user);
+    case 'guide_presentation': return { guide: DECK_GUIDE };
+    case 'voir_images': return viewImages(i.file_ids);
+    case 'creer_presentation': return createDeck(i, user);
     default: throw new Error('Outil inconnu : ' + name);
   }
 }
@@ -708,6 +715,7 @@ function systemPrompt(user) {
     "6. Rappels : anniversaires (annuaire), événements pro (agenda, ajoute-y les événements donnés), deadlines projets. Pour une veille d'événements, utilise la recherche web et ne propose que des événements avec une source officielle.",
     "7. Idées : toute suggestion d'outil ou de skill va dans noter_idee.",
     "8. Connaissances : la MÉMOIRE RUMEUR ci-dessous est ta référence sur l'agence (équipe, clients, tarifs, façons de faire). Pour une question plus précise, cherche dans le CERVEAU (chercher_connaissances puis lire_fichier) avant de répondre, et cite le document utilisé. Si l'info n'y est pas, dis-le au lieu d'inventer. Quand on te dit « retiens que… », appelle retenir.",
+    "9. Présentations (prez, deck, moodboard, locations, casting, storyboard, traitement) : lis guide_presentation, regarde les photos avec voir_images (pièces jointes, dossier Drive donné par la personne, ou dossier du projet via lister_dossier), propose le plan diapo par diapo en une liste courte, puis appelle creer_presentation. Si textes_modele_restants n'est pas vide, corrige et reconstruis. Termine par le lien de téléchargement, ce qui est sur chaque diapo et les points à vérifier. Textes en anglais par défaut comme le modèle, sauf demande contraire. Les liens de galeries Encuentra/SmugMug ne sont pas lisibles ici : demande les photos en pièces jointes ou un dossier Drive.",
     '',
     '## Règles',
     "- Les numéros de projet Rumeur se suivent (ex. 389_VEUVE_CLIQUOT_BRUNCH_CONTENT). Si la personne donne un numéro, utilise-le.",
@@ -764,14 +772,19 @@ function callClaude(system, messages, useWeb) {
 function attachmentBlocks(attachments) {
   const blocks = [];
   const notes = [];
-  (attachments || []).slice(0, 5).forEach(a => {
+  let inlineImages = 0;
+  (attachments || []).slice(0, 40).forEach(a => {
     notes.push('[Pièce jointe : ' + a.name + ' — file_id ' + a.id + ']');
     try {
       const f = DriveApp.getFileById(a.id);
       const mt = f.getMimeType();
       const size = f.getSize();
       if (mt === 'application/pdf' && size < 15 * 1024 * 1024) blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: Utilities.base64Encode(f.getBlob().getBytes()) }, title: a.name });
-      else if (/^image\/(png|jpeg|gif|webp)$/.test(mt) && size < 4.5 * 1024 * 1024) blocks.push({ type: 'image', source: { type: 'base64', media_type: mt, data: Utilities.base64Encode(f.getBlob().getBytes()) } });
+      else if (/^image\//.test(mt)) {
+        if (inlineImages >= 4) return;   // au-delà, l'assistant utilise voir_images
+        const t = driveThumb(a.id, 1200) || (/^image\/(png|jpeg|gif|webp)$/.test(mt) && size < 4.5 * 1024 * 1024 ? f.getBlob() : null);
+        if (t) { blocks.push({ type: 'image', source: { type: 'base64', media_type: t.getContentType(), data: Utilities.base64Encode(t.getBytes()) } }); inlineImages++; }
+      }
       else if (/^text\/|csv|json/.test(mt)) blocks.push({ type: 'text', text: 'Contenu de ' + a.name + ' :\n' + f.getBlob().getDataAsString().slice(0, 30000) });
       else if (/wordprocessingml|msword/.test(mt)) blocks.push({ type: 'text', text: 'Contenu de ' + a.name + ' :\n' + readDriveFile(a.id).texte });
     } catch (e) { notes.push('(lecture de ' + a.name + ' impossible : ' + e.message + ')'); }
@@ -805,9 +818,11 @@ function chat(history, attachments, user) {
     const results = resp.content.filter(b => b.type === 'tool_use').map(b => {
       let out, isErr = false;
       try { out = runTool(b.name, b.input, user); } catch (e) { out = { erreur: String(e.message || e) }; isErr = true; }
+      if (out && out.__blocks) { actions.push({ outil: b.name, ok: true, resume: out.__blocks.filter(x => x.type === 'text').map(x => x.text).join(' | ').slice(0, 300) }); return { type: 'tool_result', tool_use_id: b.id, content: out.__blocks }; }
       const str = JSON.stringify(out);
       actions.push({ outil: b.name, ok: !isErr, resume: str.slice(0, 300) });
-      return { type: 'tool_result', tool_use_id: b.id, content: str.length > 12000 ? str.slice(0, 12000) + '…(tronqué)' : str, is_error: isErr };
+      const lim = b.name === 'guide_presentation' ? 30000 : 12000;
+      return { type: 'tool_result', tool_use_id: b.id, content: str.length > lim ? str.slice(0, lim) + '…(tronqué)' : str, is_error: isErr };
     });
     msgs.push({ role: 'user', content: results });
   }

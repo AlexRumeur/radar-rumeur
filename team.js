@@ -224,7 +224,7 @@
         <button type="button" class="btn small ghost" data-ask="${esc("Range un document dans le projet " + p["Code projet"] + " : ")}" data-noauto="1">Ajouter un doc</button></div>
       </article>`);
     return `<div class="in">
-      ${vhead("Gestion de projet", "Projets.", "Du brief à la livraison : dossiers, versions, retours client.", askBtn("Nouveau brief", "Nouveau projet : voici mes notes du call de brief :\n", "primary") + askBtn("Retour client reçu", "Le client a fait un retour sur le projet ", "ghost"))}
+      ${vhead("Gestion de projet", "Projets.", "Du brief à la livraison : dossiers, versions, retours client.", askBtn("Nouveau brief", "Nouveau projet : voici mes notes du call de brief :\n", "primary") + askBtn("Créer une prez", "Crée une présentation dans le modèle Rumeur pour le projet … (type : locations / moodboard / casting / storyboard). Je joins les photos.", "ghost") + askBtn("Retour client reçu", "Le client a fait un retour sur le projet ", "ghost"))}
       <div class="kpis">
         <div class="kpi"><b>${P.length}</b><span>projets actifs</span></div>
         <div class="kpi ${late.length ? "hot" : ""}"><b>${late.length}</b><span>deadlines dépassées</span></div>
@@ -313,9 +313,10 @@
   }
 
   // ───────── Assistant ─────────
-  const TOOL_LABELS = { tableau_de_bord: "Vue d'ensemble", lire_feuille: "Lecture registre", ajouter_ligne: "Ligne ajoutée", modifier_lignes: "Registre mis à jour", creer_projet: "Projet créé", mettre_a_jour_projet: "Projet mis à jour", creer_document_projet: "Document créé", ranger_fichier: "Fichier rangé", lister_dossier: "Dossier parcouru", chercher_drive: "Recherche Drive", lire_fichier: "Fichier lu", preparer_nda_ou_contrat: "Document juridique préparé", chercher_gmail: "Recherche Gmail", lire_fil_gmail: "Mail lu", enregistrer_piece_jointe: "Pièce jointe enregistrée", creer_brouillon: "Brouillon créé", envoyer_mail_interne: "Mail interne envoyé", signaler_achat: "Achats mis à jour", noter_idee: "Idée notée", chercher_connaissances: "Recherche dans le Cerveau", retenir: "Ajouté à la mémoire" };
+  const TOOL_LABELS = { tableau_de_bord: "Vue d'ensemble", lire_feuille: "Lecture registre", ajouter_ligne: "Ligne ajoutée", modifier_lignes: "Registre mis à jour", creer_projet: "Projet créé", mettre_a_jour_projet: "Projet mis à jour", creer_document_projet: "Document créé", ranger_fichier: "Fichier rangé", lister_dossier: "Dossier parcouru", chercher_drive: "Recherche Drive", lire_fichier: "Fichier lu", preparer_nda_ou_contrat: "Document juridique préparé", chercher_gmail: "Recherche Gmail", lire_fil_gmail: "Mail lu", enregistrer_piece_jointe: "Pièce jointe enregistrée", creer_brouillon: "Brouillon créé", envoyer_mail_interne: "Mail interne envoyé", signaler_achat: "Achats mis à jour", noter_idee: "Idée notée", chercher_connaissances: "Recherche dans le Cerveau", retenir: "Ajouté à la mémoire", guide_presentation: "Modèle Rumeur", voir_images: "Photos regardées", creer_presentation: "Présentation créée" };
   const SUGG = [
     ["Nouveau brief", "Nouveau projet : voici mes notes du call de brief :\n"],
+    ["Créer une prez", "Crée une présentation dans le modèle Rumeur (locations / moodboard / casting / storyboard). Client : … Campagne : … Je joins les photos."],
     ["NDA prestataire", "Prépare un NDA pour le prestataire "],
     ["Récap d'un projet", "Fais-moi le récap du projet "],
     ["Cette semaine", "Qu'est-ce qui arrive cette semaine ? Deadlines projets, retours à traiter, anniversaires, événements."],
