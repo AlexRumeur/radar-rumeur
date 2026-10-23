@@ -1,6 +1,32 @@
 // Données du Radar Rumeur — mises à jour automatiquement chaque matin (voir RADAR.md).
-window.RADAR_UPDATED = "2026-10-22";
+window.RADAR_UPDATED = "2026-10-23";
 window.RADAR_ROWS = [
+ {
+  "id": "20261023-kering-t3",
+  "date": "2026-10-23",
+  "semaine": "2026-W43",
+  "semaineLabel": "19 – 23 oct.",
+  "categorie": "groupe",
+  "marque": "Kering",
+  "titre": "Ventes du 3e trimestre : 3,35 Md€, -1 % à périmètre comparable ; Gucci recule de 6 %, Saint Laurent et Bottega Veneta progressent. Les nouvelles directions artistiques de Saint Laurent et McQueen seront « annoncées prochainement », et la licence beauté Gucci passera chez L'Oréal dès mi-2027 (22/10).",
+  "pourquoi": "Deux maisons Kering vont bientôt changer de DA : chaque nomination relancera campagnes, films et contenus. Garder un œil sur l'annonce Saint Laurent et préparer l'approche. Le passage anticipé de Gucci Beauté chez L'Oréal est aussi une porte d'entrée via notre client.",
+  "priorite": 2,
+  "source": "Kering (communiqué), 22/10",
+  "url": "https://globenewswire.com/news-release/2026/10/22/3386683/0/fr/kering-chiffre-d-affaires-du-troisi%C3%A8me-trimestre-2026.html"
+ },
+ {
+  "id": "20261023-loreal-luxe-t3",
+  "date": "2026-10-23",
+  "semaine": "2026-W43",
+  "semaineLabel": "19 – 23 oct.",
+  "categorie": "client",
+  "marque": "L'Oréal Luxe",
+  "titre": "L'Oréal Luxe réalise 4,18 Md€ au 3e trimestre (+6,4 % à périmètre comparable), porté par le parfum : YSL (Libre, MYSLF), Armani (I Will), Prada (Paradigme), Valentino (Vendetta). Priorités affichées : soin ultra-premium et maquillage Couture (22/10).",
+  "pourquoi": "Le parfum reste le moteur et le maquillage Couture une priorité : de quoi proposer à YSL, Armani et Prada des contenus pour les relances parfum et des formats maquillage pour les fêtes et 2027.",
+  "priorite": 2,
+  "source": "L'Oréal Finance, 22/10",
+  "url": "https://www.loreal-finance.com/eng/press-release/sales-30-september-2026"
+ },
  {
   "id": "20261022-inspi-curry-tian",
   "date": "2026-10-22",
