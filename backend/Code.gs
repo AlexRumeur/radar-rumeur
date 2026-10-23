@@ -86,6 +86,7 @@ function route(req, user) {
     case 'ws_update': return { result: wsUpdate(req, user) };
     case 'ws_thumbs': return { thumbs: wsThumbs(req) };
     case 'ws_file': return { file: wsFile(req) };
+    case 'ws_log': console.warn('CLIENT ' + user.email + ' ' + String(req.msg || '').slice(0, 3000)); return { result: true };
     case 'ws_photos': return { data: wsPhotos(req, user) };
     default: throw new Error('Action inconnue : ' + req.action);
   }

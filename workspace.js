@@ -143,7 +143,7 @@
     const all = (ws.data && ws.data.items) || [];
     const pdfs = all.some(i => (i.fichiers || []).length);
     const missing = list.filter(i => i.statut !== "info" && !hasPhoto(i)).length;
-    const finder = rub === "Casting" && missing && pdfs ? `<div class="finder"><p><b>${missing} personne(s) sans photo.</b> Leurs photos sont peut-être dans le brief ou la planche casting déjà déposés.</p><button type="button" class="btn primary small" data-ws-findphotos="1" ${ws.finding ? "disabled" : ""}>${ws.finding ? esc(ws.finding) : "Retrouver les photos dans les PDF"}</button></div>` : "";
+    const finder = rub === "Casting" && missing && pdfs ? `<div class="finder"><p><b>${missing} personne(s) sans photo.</b> Leurs photos sont peut-être dans le brief ou la planche casting déjà déposés.</p><button type="button" class="btn primary small" data-ws-findphotos="1" ${ws.finding ? "disabled" : ""}>${ws.finding ? esc(ws.finding) : "Retrouver les photos dans les PDF"}</button>${ws.findErr ? `<p class="mini" style="flex-basis:100%;color:var(--warn)">${esc(ws.findErr)}</p>` : ""}</div>` : "";
     const strip = faces.length ? `<div class="trombi">${faces.map(i => `<a class="plain face ${i.statut === "écarté" ? "dim" : ""}" href="#card-${esc(i.id)}">${avatar(i)}<b>${esc(shortName(i.titre))}</b><span class="tag ${ST_CLS[i.statut] || ""}">${esc(i.statut)}</span></a>`).join("")}</div>` : "";
     return `<section class="blk"><h3>${ICON[rub] || ""} ${esc(rub)} <small>${list.length} fiche(s)</small></h3>${finder}${strip}${compare}
       <div class="wsgrid ${rub === "Casting" ? "people" : ""}">${list.map(i => card(i, statuts)).join("")}</div></section>`;
@@ -234,51 +234,88 @@
     });
     return pdfLib;
   }
-  async function pdfPages(file) {
+  /* opts.names : noms à chercher (casting) — les pages qui les citent passent en premier.
+     opts.max : nombre de pages rendues ; opts.size : grand côté en pixels. */
+  async function pdfPages(file, opts) {
+    opts = opts || {};
+    const max = opts.max || 15, size = opts.size || 1568;
     const lib = await loadPdfJs();
     const doc = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
     const O = lib.OPS, IMG = [O.paintImageXObject, O.paintInlineImageXObject, O.paintImageXObjectRepeat, O.paintJpegXObject, O.paintImageMaskXObject].filter(x => x !== undefined);
     const base = (file.name || "document.pdf").replace(/\.pdf$/i, "");
-    const out = [];
-    for (let n = 1; n <= doc.numPages && out.length < 15; n++) {
+    const names = (opts.names || []).map(norm).filter(x => x.length > 2);
+    const cand = [];
+    for (let n = 1; n <= Math.min(doc.numPages, 80); n++) {
       const page = await doc.getPage(n);
       const ops = await page.getOperatorList();
-      if (!ops.fnArray.some(f => IMG.includes(f))) continue;
-      const v0 = page.getViewport({ scale: 1 });
-      const vp = page.getViewport({ scale: 1568 / Math.max(v0.width, v0.height) });
+      const img = ops.fnArray.some(f => IMG.includes(f));
+      let txt = ""; try { txt = norm((await page.getTextContent()).items.map(i => i.str).join(" ")); } catch (e) {}
+      const score = names.filter(k => new RegExp("\\b" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b").test(txt)).length * 3 + (/\b(casting|who|personnages?|profils?|talents?)\b/.test(txt) ? 2 : 0);
+      cand.push({ n, page, img, score });
+    }
+    let pick = cand.filter(c => c.img);
+    if (!pick.length) pick = cand.slice();
+    pick.sort((a, b) => b.score - a.score || a.n - b.n);
+    pick = pick.slice(0, max).sort((a, b) => a.n - b.n);
+    const out = [];
+    for (const c of pick) {
+      const v0 = c.page.getViewport({ scale: 1 });
+      const vp = c.page.getViewport({ scale: size / Math.max(v0.width, v0.height) });
       const cv = document.createElement("canvas"); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
       const ctx = cv.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
-      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      await c.page.render({ canvasContext: ctx, viewport: vp }).promise;
       const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.85));
-      if (blob) { const f = new File([blob], base + " — page " + n + ".jpg", { type: "image/jpeg" }); f.page = n; out.push(f); }
+      if (blob) { const f = new File([blob], base + " — page " + c.n + ".jpg", { type: "image/jpeg" }); f.page = c.n; f.score = c.score; out.push(f); }
     }
+    out.total = doc.numPages;
     return out;
   }
 
   async function findPhotos() {
     const ids = [...new Set((ws.data.items || []).flatMap(i => i.fichiers || []))].slice(0, 4);
-    const pages = [];
+    const pages = [], log = [];
+    const step = (t) => { ws.finding = t; log.push(t); render(); };
+    ws.findErr = "";
     try {
       for (const id of ids) {
-        ws.finding = "Ouverture des PDF…"; render();
-        let f; try { f = (await T.api("ws_file", { code: ws.code, id })).file; } catch (e) { continue; }   // pas un PDF
-        const bin = atob(f.data), u8 = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u8[k] = bin.charCodeAt(k);
-        ws.finding = "Lecture des pages de " + f.name + "…"; render();
-        const imgs = await pdfPages(new File([u8], f.name, { type: "application/pdf" }));
-        for (let k = 0; k < imgs.length; k++) {
-          ws.finding = "Envoi des pages " + (pages.length + 1) + "…"; render();
-          const out = await T.api("upload", { file: { name: imgs[k].name, mimeType: "image/jpeg", data: await T.readB64(imgs[k]) } });
-          pages.push(out.file.id);
+        step("Ouverture du PDF…");
+        let name = "", parts = [], off = 0, total = 1;
+        try {
+          while (off < total) {
+            const f = (await T.api("ws_file", { code: ws.code, id, offset: off })).file;
+            name = f.name; total = f.total;
+            const bin = atob(f.data), u8 = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) u8[k] = bin.charCodeAt(k);
+            parts.push(u8); off += u8.length;
+            step("Téléchargement de " + name + " : " + Math.round(100 * off / total) + " %");
+            if (!u8.length) break;
+          }
+        } catch (e) { log.push("ws_file " + id + " : " + e.message); continue; }
+        step("Lecture des pages de " + name + "…");
+        const names = (ws.data.items || []).filter(i => i.rubrique === "Casting").map(i => shortName(i.titre).split(/\s+/)[0]);
+        const imgs = await pdfPages(new File(parts, name, { type: "application/pdf" }), { names, max: 24, size: 1400 });
+        log.push(name + " : " + imgs.total + " pages, rendues " + imgs.map(f => f.page + (f.score ? "*" : "")).join(","));
+        let done = 0;
+        for (let k = 0; k < imgs.length; k += 3) {
+          const ids = await Promise.all(imgs.slice(k, k + 3).map(async f => (await T.api("upload", { file: { name: f.name, mimeType: "image/jpeg", data: await T.readB64(f) } })).file.id));
+          pages.push(...ids); done += ids.length;
+          step("Envoi des pages " + done + "/" + imgs.length + "…");
         }
       }
-      if (!pages.length) { T.toast("Aucune page avec des photos trouvée dans les PDF."); return; }
-      ws.finding = "L'assistant repère chaque personne (30 s à 1 min)…"; render();
-      const out = (await T.api("ws_photos", { code: ws.code, files: pages.slice(0, 20) })).data;
+      if (!pages.length) throw new Error("aucune page lisible dans les PDF du workspace");
+      step("L'assistant repère chaque personne (30 s à 1 min)…");
+      const out = (await T.api("ws_photos", { code: ws.code, files: pages.slice(0, 30) })).data;
       ws.data = out;
       const n = (out.photos_trouvees || []).length;
       T.toast(n ? n + " photo(s) retrouvée(s) : " + out.photos_trouvees.join(", ") : "Aucune photo retrouvée. Utilisez « Ajouter sa photo » sur chaque fiche.");
-    } catch (e) { T.toast(e.message); }
-    finally { ws.finding = ""; render(); }
+      if (!n) ws.findErr = "L'assistant n'a reconnu personne sur les " + pages.length + " page(s) lues.";
+    } catch (e) {
+      ws.findErr = "Échec : " + e.message;
+      log.push("ERREUR " + (e && e.stack || e));
+      T.toast(ws.findErr);
+    } finally {
+      try { T.api("ws_log", { code: ws.code, msg: "findPhotos · " + navigator.userAgent + " · " + log.join(" | ") }); } catch (e) {}
+      ws.finding = ""; render();
+    }
   }
 
   async function addPhotos(id, files) {
@@ -340,7 +377,7 @@
       if (f.type === "application/pdf" || /\.pdf$/i.test(f.name || "")) {
         ws.reading = "Lecture des pages illustrées de " + f.name + "…"; render();
         try {
-          const pages = await pdfPages(f);
+          const pages = await pdfPages(f, { names: ((ws.data && ws.data.items) || []).filter(i => i.rubrique === "Casting").map(i => shortName(i.titre).split(/\s+/)[0]) });
           if (pages.length) ws.reading = pages.length + " page(s) illustrée(s) envoyée(s) pour retrouver les photos…";
           render();
           for (let k = 0; k < pages.length; k += 3) await Promise.all(pages.slice(k, k + 3).map(upOne));
@@ -406,6 +443,7 @@
   }
 
   T.renderWorkspace = render;
+  T._pdfPages = pdfPages;   // diagnostic
 })();
 // Si la page s'ouvre directement sur un workspace, l'afficher une fois ce fichier chargé.
 (function () { const T = window.RumeurTeam; if (T && T.getUser() && T.current() === "workspace") T.renderWorkspace(); })();
