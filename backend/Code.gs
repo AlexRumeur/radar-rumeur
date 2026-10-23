@@ -76,6 +76,10 @@ function route(req, user) {
     case 'me': return { user };
     case 'dashboard': return { data: dashboard() };
     case 'chat': return chat(req.messages || [], req.attachments || [], user);
+    case 'chats_list': return { chats: chatsList(user) };
+    case 'chat_get': return { chat: chatGet(user, req.id) };
+    case 'chat_save': return { result: chatSave(user, req) };
+    case 'chat_delete': return { result: chatDelete(user, req.id) };
     case 'upload': return { file: uploadFile(req.file, user) };
     case 'achat_signal': return { result: achatSignal(req.article, user) };
     case 'achat_ordered': return { result: achatOrdered(req.article, user) };

@@ -16,7 +16,7 @@
   const toast = (t) => { const el = $("toast"); if (!el) return; el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (el.hidden = true), 2600); };
 
   let token = null, user = null, dash = null, dashLoading = false, gisReady = false, gateError = "";
-  let history = [], pending = [], busy = false;
+  let history = [], pending = [], busy = false, chatId = null, chats = null, chatsLoading = false, chatsOpen = false, delAsk = null;
   const DEMO = new URLSearchParams(location.search).has("demo");
 
   // ───────── Mode démo : données fictives, aucun appel serveur ─────────
@@ -47,10 +47,18 @@
       { "Article": "Eau pétillante", "Fournisseur": "Supermarché", "Dernière commande": "12/10/2026", bas: false, dans: 7, aCommander: false },
     ],
   };
+  const DEMO_CHATS = [
+    { id: "demo1", titre: "Compare les 3 devis lumière pour BODY", maj: Date.now() - 3600e3, messages: [{ role: "user", content: "Compare les 3 devis lumière pour BODY" }, { role: "assistant", content: "**Exemple** — le devis B est le moins cher à prestation égale (2 450 € HT), mais il n'inclut pas le transport." }] },
+    { id: "demo2", titre: "Comment on fait signer un NDA chez Rumeur ?", maj: Date.now() - 86400e3 * 2, messages: [{ role: "user", content: "Comment on fait signer un NDA chez Rumeur ?" }, { role: "assistant", content: "**Exemple** — 1. Je prépare le NDA depuis le modèle. 2. Vous le déposez dans Yousign. 3. Vous me dites « NDA de X signé »." }] },
+  ];
   async function demoApi(action, payload) {
     await new Promise((r) => setTimeout(r, action === "chat" ? 900 : 250));
     if (action === "dashboard") return { data: JSON.parse(JSON.stringify(DEMO_DASH)) };
     if (action === "upload") return { file: { id: "demo", name: payload.file.name } };
+    if (action === "chats_list") return { chats: DEMO_CHATS.map(c => ({ id: c.id, titre: c.titre, maj: c.maj, n: c.messages.length })) };
+    if (action === "chat_get") { const c = DEMO_CHATS.find(x => x.id === payload.id); return { chat: c }; }
+    if (action === "chat_save") { let c = DEMO_CHATS.find(x => x.id === payload.id); if (!c) { c = { id: "d" + Date.now(), titre: String((payload.messages.find(m => m.role === "user") || {}).content || "Conversation").slice(0, 70) }; DEMO_CHATS.unshift(c); } c.messages = payload.messages; c.maj = Date.now(); return { result: { id: c.id, titre: c.titre } }; }
+    if (action === "chat_delete") { const i = DEMO_CHATS.findIndex(x => x.id === payload.id); if (i >= 0) DEMO_CHATS.splice(i, 1); return { result: { ok: true } }; }
     if (action === "chat") return {
       reply: "**Mode démo** — l'assistant n'est pas encore branché.\n\nUne fois activé, il pourra par exemple :\n- transformer vos notes de call en **fiche brief** (résumé, recommandations, warnings) puis créer le dossier projet dans le Drive ;\n- ranger un devis, une DA ou un retour client dans le bon projet ;\n- préparer un **NDA** ou un contrat freelance prêt pour Yousign ;\n- signaler ce qui manque au bureau et préparer la commande.",
       actions: [], memo: "",
@@ -93,6 +101,7 @@
     token = t; user = { email: p.email, name: p.given_name || p.name || p.email, picture: p.picture || "" };
     gateError = ""; store.set("rumeur_tok", t);
     try { history = JSON.parse(store.get("rumeur_chat_" + user.email) || "[]"); } catch (e) { history = []; }
+    chatId = store.get("rumeur_chatid_" + user.email) || null; chats = null;
     renderAccount(); show(current());
   }
   function signOut(silent) {
@@ -334,8 +343,10 @@
   // ───────── Assistant ─────────
   const TOOL_LABELS = { tableau_de_bord: "Vue d'ensemble", lire_feuille: "Lecture registre", ajouter_ligne: "Ligne ajoutée", modifier_lignes: "Registre mis à jour", creer_projet: "Projet créé", mettre_a_jour_projet: "Projet mis à jour", creer_document_projet: "Document créé", ranger_fichier: "Fichier rangé", lister_dossier: "Dossier parcouru", chercher_drive: "Recherche Drive", lire_fichier: "Fichier lu", preparer_nda_ou_contrat: "Document juridique préparé", chercher_gmail: "Recherche Gmail", lire_fil_gmail: "Mail lu", enregistrer_piece_jointe: "Pièce jointe enregistrée", creer_brouillon: "Brouillon créé", envoyer_mail_interne: "Mail interne envoyé", signaler_achat: "Achats mis à jour", noter_idee: "Idée notée", chercher_connaissances: "Recherche dans le Cerveau", retenir: "Ajouté à la mémoire", guide_presentation: "Modèle Rumeur", voir_images: "Photos regardées", creer_presentation: "Présentation créée" };
   const SUGG = [
-    ["Nouveau brief", "Nouveau projet : voici mes notes du call de brief :\n"],
     ["Créer une prez", "Crée une présentation dans le modèle Rumeur (locations / moodboard / casting / storyboard). Client : … Campagne : … Je joins les photos."],
+    ["Comparer des devis", "Compare ces devis (je les joins) : prix HT et TTC, ce qui est inclus ou non, écarts entre eux, points à négocier, et ta recommandation. Projet : "],
+    ["Process Rumeur", "Comment ça se passe chez Rumeur pour "],
+    ["Nouveau brief", "Nouveau projet : voici mes notes du call de brief :\n"],
     ["NDA prestataire", "Prépare un NDA pour le prestataire "],
     ["Récap d'un projet", "Fais-moi le récap du projet "],
     ["Cette semaine", "Qu'est-ce qui arrive cette semaine ? Deadlines projets, retours à traiter, anniversaires, événements."],
@@ -381,15 +392,19 @@
   function renderAssistant() {
     const el = $("v-assistant");
     if (!el.querySelector(".chatwrap")) {
-      el.innerHTML = `<div class="in"><div class="chatwrap">
+      el.innerHTML = `<div class="in chatlayout">
+        <aside class="chats" id="chats" aria-label="Historique des conversations"></aside>
+        <div class="chatwrap">
         <div class="msgs" id="msgs" aria-live="polite"></div>
+        <div class="suggbar" id="suggbar"></div>
         <form class="composer" id="composer">
           <div class="box">
             <div class="pending" id="pending"></div>
             <textarea id="prompt" rows="1" placeholder="Écrivez à l'assistant… (collez des notes de call, déposez un brief, un devis…)" aria-label="Message"></textarea>
             <div class="bar">
               <span><button type="button" class="iconbtn" id="attach" title="Joindre un fichier" aria-label="Joindre un fichier"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.5l-8.6 8.6a5.5 5.5 0 01-7.8-7.8l9.2-9.2a3.7 3.7 0 015.2 5.2l-9.2 9.2a1.8 1.8 0 01-2.6-2.6l8.5-8.5"/></svg></button>
-              <button type="button" class="iconbtn" id="newchat" title="Nouvelle conversation" aria-label="Nouvelle conversation"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></span>
+              <button type="button" class="iconbtn" id="newchat" title="Nouvelle conversation" aria-label="Nouvelle conversation"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+              <button type="button" class="iconbtn histbtn" id="histbtn" title="Historique des conversations" aria-label="Historique des conversations"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 103-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg></button></span>
               <button type="submit" class="send" id="send" aria-label="Envoyer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
             </div>
           </div>
@@ -400,10 +415,67 @@
       wireComposer();
     }
     renderMsgs();
+    renderChats();
+    if (!chats && !chatsLoading) loadChats();
+  }
+
+  // ───────── Historique des conversations (stocké dans le Drive, par personne) ─────────
+  async function loadChats() {
+    chatsLoading = true; renderChats();
+    try {
+      chats = (await api("chats_list")).chats || [];
+      if (history.length && !chatId) await persistChat();   // conversation en cours d'avant l'historique
+    } catch (e) { chats = chats || []; }
+    finally { chatsLoading = false; renderChats(); }
+  }
+  function ago(t) {
+    const d = (Date.now() - t) / 1000;
+    if (d < 3600) return Math.max(1, Math.round(d / 60)) + " min";
+    if (d < 86400) return Math.round(d / 3600) + " h";
+    if (d < 86400 * 7) return Math.round(d / 86400) + " j";
+    return new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  }
+  function renderChats() {
+    const a = $("chats"); if (!a) return;
+    a.classList.toggle("open", chatsOpen);
+    const list = chats || [];
+    a.innerHTML = `<div class="chats-h"><b>Historique</b><button type="button" class="btn small primary" data-chat-new="1">+ Nouvelle</button><button type="button" class="iconbtn chats-x" data-chat-close="1" aria-label="Fermer">×</button></div>
+      ${chatsLoading && !list.length ? `<p class="mini">Chargement…</p>` : ""}
+      ${!chatsLoading && !list.length ? `<p class="mini">Vos conversations apparaîtront ici. Elles sont enregistrées dans le Drive et visibles seulement par vous.</p>` : ""}
+      <ul>${list.map(c => `<li class="${c.id === chatId ? "on" : ""}"><button type="button" class="chat-it" data-chat-open="${esc(c.id)}"><span>${esc(c.titre)}</span><small>${esc(ago(c.maj))}</small></button>${delAsk === c.id ? `<button type="button" class="chat-del sure" data-chat-del="${esc(c.id)}">Supprimer</button>` : `<button type="button" class="chat-del" data-chat-ask="${esc(c.id)}" aria-label="Supprimer la conversation">×</button>`}</li>`).join("")}</ul>`;
+  }
+  async function persistChat() {
+    const keep = history.filter((m) => !m.error);
+    if (!keep.length) return;
+    try {
+      const r = (await api("chat_save", { id: chatId, messages: keep })).result || {};
+      if (!r.id) return;
+      chatId = r.id; store.set("rumeur_chatid_" + user.email, chatId);
+      chats = (chats || []).filter(c => c.id !== r.id);
+      chats.unshift({ id: r.id, titre: r.titre, maj: Date.now(), n: keep.length });
+      renderChats();
+    } catch (e) { /* l'historique local reste dans le navigateur */ }
+  }
+  async function openChat(id) {
+    if (busy || id === chatId) { chatsOpen = false; renderChats(); return; }
+    try {
+      const c = (await api("chat_get", { id })).chat;
+      history = c.messages || []; chatId = c.id; pending = [];
+      store.set("rumeur_chatid_" + user.email, chatId); saveHistory();
+      chatsOpen = false; renderPending(); renderMsgs(); renderChats();
+    } catch (e) { toast(e.message); }
+  }
+  function newChat() {
+    if (busy) return;
+    history = []; pending = []; chatId = null; store.del("rumeur_chatid_" + user.email);
+    saveHistory(); chatsOpen = false; renderPending(); renderMsgs(); renderChats();
+    const ta = $("prompt"); if (ta) ta.focus();
   }
 
   function renderMsgs(typing) {
     const box = $("msgs"); if (!box) return;
+    const sb = $("suggbar");
+    if (sb) sb.innerHTML = history.length ? SUGG.slice(0, 3).map(([l, p]) => `<button type="button" class="chip small" data-ask="${esc(p)}" data-noauto="1">${esc(l)}</button>`).join("") : "";
     if (!history.length && !typing) {
       box.innerHTML = `<div class="welcome"><p class="eyebrow">Assistant Rumeur</p><h1>Bonjour ${esc((user && user.name || "").split(" ")[0])}.</h1>
         <p>Briefs, dossiers projet, NDA, factures, achats, anniversaires : demandez, l'assistant s'occupe du Drive et de Gmail.</p>
@@ -454,7 +526,19 @@
     ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("composer").requestSubmit(); } });
     $("attach").onclick = () => $("file").click();
     $("file").onchange = (e) => { addFiles([...e.target.files]); e.target.value = ""; };
-    $("newchat").onclick = () => { if (busy) return; history = []; pending = []; saveHistory(); renderPending(); renderMsgs(); ta.focus(); };
+    $("newchat").onclick = newChat;
+    $("histbtn").onclick = () => { chatsOpen = !chatsOpen; renderChats(); };
+    $("chats").addEventListener("click", async (e) => {
+      const t = (sel) => e.target.closest(sel);
+      if (t("[data-chat-new]")) return newChat();
+      if (t("[data-chat-close]")) { chatsOpen = false; return renderChats(); }
+      if (t("[data-chat-open]")) { delAsk = null; return openChat(t("[data-chat-open]").dataset.chatOpen); }
+      if (t("[data-chat-ask]")) { delAsk = t("[data-chat-ask]").dataset.chatAsk; return renderChats(); }
+      if (t("[data-chat-del]")) {
+        const id = t("[data-chat-del]").dataset.chatDel; delAsk = null;
+        try { await api("chat_delete", { id }); chats = (chats || []).filter(c => c.id !== id); if (id === chatId) newChat(); else renderChats(); toast("Conversation supprimée"); } catch (err) { toast(err.message); }
+      }
+    });
     $("pending").onclick = (e) => { const b = e.target.closest("[data-unpend]"); if (b) { pending.splice(+b.dataset.unpend, 1); renderPending(); } };
     const wrap = $("v-assistant");
     wrap.addEventListener("dragover", (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) e.preventDefault(); });
@@ -480,6 +564,7 @@
         history.push({ role: "assistant", content: "Je n'ai pas pu répondre : " + err.message, error: true });
       } finally {
         busy = false; saveHistory(); renderPending(); renderMsgs();
+        persistChat();
       }
     };
   }

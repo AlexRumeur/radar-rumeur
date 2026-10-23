@@ -245,3 +245,32 @@ a.btn.primary{color:#fff}
 .trombi{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
 @media (max-width:600px){.wcard.cast .gal .ph.main,.wcard.cast .nophoto{aspect-ratio:1/1}.face .av{width:76px;height:76px}}
 .finder{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;background:var(--tile);border-radius:14px;padding:12px 16px;margin:0 0 18px}.finder p{margin:0;font-size:15px}
+/* Historique des conversations */
+.chatlayout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:28px;align-items:start}
+.chatlayout .chatwrap{width:100%}
+.chats{position:sticky;top:76px;max-height:calc(100dvh - 100px);overflow:auto;padding:18px 0;display:flex;flex-direction:column;gap:10px}
+.chats-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.chats-h b{font-size:15px}
+.chats-x{display:none}
+.chats ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.chats li{display:flex;align-items:center;border-radius:10px}
+.chats li:hover,.chats li.on{background:var(--tile)}
+.chat-it{flex:1;min-width:0;border:0;background:none;text-align:left;padding:8px 6px 8px 10px;cursor:pointer;color:var(--ink);font:400 14px var(--font);display:flex;flex-direction:column;gap:1px}
+.chat-it span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-it small{color:var(--muted);font-size:12px}
+.chats li.on .chat-it span{font-weight:600}
+.chat-del{border:0;background:none;color:var(--muted);cursor:pointer;font:400 16px var(--font);padding:4px 8px;border-radius:8px;opacity:0}
+.chats li:hover .chat-del,.chat-del:focus,.chat-del.sure{opacity:1}
+.chat-del.sure{font-size:12px;color:#fff;background:var(--warn,#c0392b)}
+.histbtn{display:none}
+.suggbar{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+.suggbar:empty{display:none}
+.suggbar .chip{flex:none;font-size:13px;padding:5px 12px}
+@media (max-width:980px){
+  .chatlayout{display:block}
+  .histbtn{display:inline-grid}
+  .chats{position:fixed;inset:0 auto 0 0;top:0;max-height:none;height:100dvh;width:min(86vw,320px);background:var(--bg);z-index:60;padding:18px 16px;box-shadow:0 0 0 100vmax rgba(0,0,0,.35);transform:translateX(-105%);transition:transform .2s ease;visibility:hidden}
+  .chats.open{transform:none;visibility:visible}
+  .chats-x{display:inline-grid}
+  .chat-del{opacity:1}
+}
