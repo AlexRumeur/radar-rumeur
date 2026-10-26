@@ -13,6 +13,9 @@
  *   MODEL               claude-sonnet-5-5 (par défaut)
  *   WEB_SEARCH          on | off (par défaut on)
  *   DIGEST_MODE         send | draft (par défaut send — envoi interne uniquement)
+ *   GMAIL_LECTURE       on | off (par défaut off). À n'activer que si le backend
+ *                       s'exécute avec le compte ai@ : sinon l'assistant lit la
+ *                       boîte du compte qui a déployé.
  *   RUMEUR_INFOS        JSON des infos légales, ex. {"RUMEUR_SIREN":"…","RUMEUR_ADRESSE":"…"}
  */
 
@@ -676,8 +679,13 @@ const TOOLS = [
   { name: 'noter_idee', description: 'Ajoute une idée de skill / amélioration / bug à la boîte à idées.', input_schema: { type: 'object', properties: { description: { type: 'string' }, pole: { type: 'string' } }, required: ['description'] } },
 ];
 
+// Outils qui lisent la boîte Gmail du compte qui exécute le backend.
+const GMAIL_READ_TOOLS = ['chercher_gmail', 'lire_fil_gmail', 'enregistrer_piece_jointe'];
+function gmailReadEnabled() { return prop('GMAIL_LECTURE', 'off') === 'on'; }
+
 function runTool(name, input, user) {
   const i = input || {};
+  if (GMAIL_READ_TOOLS.indexOf(name) >= 0 && !gmailReadEnabled()) throw new Error('La lecture Gmail est désactivée pour le moment.');
   switch (name) {
     case 'tableau_de_bord': return dashboard();
     case 'lire_feuille': {
@@ -768,7 +776,7 @@ function callClaude(system, messages, useWeb, opts) {
   if (typeof system === 'string') system = [{ type: 'text', text: system }];
   const key = prop('ANTHROPIC_API_KEY', '');
   if (!key) throw new Error("La clé API Claude n'est pas configurée (ANTHROPIC_API_KEY).");
-  const tools = (opts.tools || TOOLS).slice();
+  const tools = (opts.tools || TOOLS).filter(t => gmailReadEnabled() || GMAIL_READ_TOOLS.indexOf(t.name) < 0);
   if (useWeb) tools.push({ type: 'web_search_20250305', name: 'web_search', max_uses: 3 });
   const payload = { model: prop('MODEL', 'claude-sonnet-5-5'), max_tokens: opts.max_tokens || 4096, system, messages, tools };
   if (opts.tool_choice) payload.tool_choice = opts.tool_choice;
