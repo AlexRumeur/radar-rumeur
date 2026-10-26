@@ -1,6 +1,49 @@
 // Données du Radar Rumeur — mises à jour automatiquement chaque matin (voir RADAR.md).
-window.RADAR_UPDATED = "2026-10-23";
+window.RADAR_UPDATED = "2026-10-26";
 window.RADAR_ROWS = [
+ {
+  "id": "20261026-louis-vuitton-muelas",
+  "date": "2026-10-26",
+  "semaine": "2026-W44",
+  "semaineLabel": "26 – 30 oct.",
+  "categorie": "cible",
+  "marque": "Louis Vuitton",
+  "titre": "Louis Vuitton crée un poste de Chief Brand Creative Officer et y nomme Hector Muelas (ex-directeur créatif et de marque de Tiffany & Co., artisan de la relance de Rimowa), à partir du 1er novembre, rattaché au directeur général adjoint Damien Bertrand (25/10).",
+  "pourquoi": "Un nouveau patron du récit de marque sur tous les points de contact : il va revoir la façon dont Vuitton produit ses images, campagnes et contenus. Repérer son équipe et les partenaires qu'il a fait travailler chez Tiffany et Rimowa, et se présenter dans ses premiers mois.",
+  "priorite": 3,
+  "source": "FashionNetwork, 25/10",
+  "url": "https://fr.fashionnetwork.com/news/Louis-vuitton-cree-le-poste-de-directeur-de-la-creation-de-marque-pour-unifier-l-image-de-la-maison,1878869.html",
+  "img": "https://media.fashionnetwork.com/cdn-cgi/image/fit=cover,width=600,height=600,format=auto/m/f98d/2573/115c/2b03/9516/66fb/433a/f82a/4121/fcaa/fcaa.png",
+  "echeance": "2026-11-01",
+  "echeanceLabel": "Prise de poste d'Hector Muelas"
+ },
+ {
+  "id": "20261026-groupes-chine",
+  "date": "2026-10-26",
+  "semaine": "2026-W44",
+  "semaineLabel": "26 – 30 oct.",
+  "categorie": "groupe",
+  "marque": "LVMH",
+  "titre": "Bilan des ventes du 3e trimestre : la Chine reste le point faible du luxe. LVMH ne croît que de 1 % en organique (3 % au trimestre précédent), avec une demande chinoise en baisse d'environ 15 % selon sa directrice financière ; Goldman Sachs voit une vraie reprise plutôt en 2027 (23/10).",
+  "pourquoi": "Les groupes vont continuer à serrer les budgets et à privilégier l'Europe et les États-Unis : mettre en avant des productions efficaces, des contenus déclinables et des activations locales à Paris plutôt que de gros dispositifs.",
+  "priorite": 1,
+  "source": "FashionNetwork (AFP), 23/10",
+  "url": "https://fr.fashionnetwork.com/news/Les-groupes-de-luxe-restent-suspendus-a-la-reprise-en-chine,1878510.html"
+ },
+ {
+  "id": "20261026-inspi-loewe-on",
+  "date": "2026-10-26",
+  "semaine": "2026-W44",
+  "semaineLabel": "26 – 30 oct.",
+  "categorie": "inspi",
+  "marque": "Loewe",
+  "titre": "Campagne Loewe x On automne-hiver 2026 : trois films réalisés par Rosie Marks qui suivent les artistes Joan Jonas, Tarek Atoui et Martine Syms et ce qui les pousse à créer, du paysage du Cap-Breton aux fragments de la ville (23/10).",
+  "pourquoi": "Une collab mode-sport racontée par des portraits d'artistes plutôt que par le produit : un format documentaire léger, facile à décliner en série, à proposer aux maisons qui veulent parler de savoir-faire et de culture. Rosie Marks est une réalisatrice à suivre.",
+  "priorite": 1,
+  "source": "shots, 23/10",
+  "url": "https://shots.net/news/view/loewe-x-on-gets-inside-the-creative-world",
+  "img": "https://images.slatecdn.net/oxJID-r6CXH9-nppPcbsPGFfX1_I5T1mMtVYzdREn7c/rs:fill:1200:630:1/q:80/aHR0cHM6Ly9zMy11/cy13ZXN0LTEuYW1h/em9uYXdzLmNvbS9t/ZWRpYS11cy13ZXN0/c2xhdGVhcHBjb20v/c2hvdHNtYWcvcHJv/ZHVjdGlvbi9uZXdz/L2MzYTRlZGU3LWE0/ZWMtNGQ5ZC1iOGQ4/LTA3OWQzNDM0YThl/NC9kZXNpZ25lZC1m/b3ItYXJ0aXN0aWMt/ZXhwbG9yYXRpb24t/c3RpbGwtMS5qcGVn?v=1&quality=70&format=jpeg"
+ },
  {
   "id": "20261023-kering-t3",
   "date": "2026-10-23",
