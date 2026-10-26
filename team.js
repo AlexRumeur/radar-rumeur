@@ -17,6 +17,7 @@
 
   let token = null, user = null, dash = null, dashLoading = false, gisReady = false, gateError = "";
   let history = [], pending = [], busy = false, chatId = null, chats = null, chatsLoading = false, chatsOpen = false, delAsk = null;
+  let conv = { id: null }, saveQ = Promise.resolve();   // conversation affichée ; file des enregistrements Drive
   const DEMO = new URLSearchParams(location.search).has("demo");
 
   // ───────── Mode démo : données fictives, aucun appel serveur ─────────
@@ -57,7 +58,7 @@
     if (action === "upload") return { file: { id: "demo", name: payload.file.name } };
     if (action === "chats_list") return { chats: DEMO_CHATS.map(c => ({ id: c.id, titre: c.titre, maj: c.maj, n: c.messages.length })) };
     if (action === "chat_get") { const c = DEMO_CHATS.find(x => x.id === payload.id); return { chat: c }; }
-    if (action === "chat_save") { let c = DEMO_CHATS.find(x => x.id === payload.id); if (!c) { c = { id: "d" + Date.now(), titre: String((payload.messages.find(m => m.role === "user") || {}).content || "Conversation").slice(0, 70) }; DEMO_CHATS.unshift(c); } c.messages = payload.messages; c.maj = Date.now(); return { result: { id: c.id, titre: c.titre } }; }
+    if (action === "chat_save") { let c = DEMO_CHATS.find(x => x.id === payload.id); if (!c) { c = { id: "d" + Date.now(), titre: payload.titre || String((payload.messages.find(m => m.role === "user") || {}).content || "Conversation").slice(0, 70) }; DEMO_CHATS.unshift(c); } c.messages = payload.messages; c.maj = Date.now(); return { result: { id: c.id, titre: c.titre } }; }
     if (action === "chat_delete") { const i = DEMO_CHATS.findIndex(x => x.id === payload.id); if (i >= 0) DEMO_CHATS.splice(i, 1); return { result: { ok: true } }; }
     if (action === "chat") return {
       reply: "**Mode démo** — l'assistant n'est pas encore branché.\n\nUne fois activé, il pourra par exemple :\n- transformer vos notes de call en **fiche brief** (résumé, recommandations, warnings) puis créer le dossier projet dans le Drive ;\n- ranger un devis, une DA ou un retour client dans le bon projet ;\n- préparer un **NDA** ou un contrat freelance prêt pour Yousign ;\n- signaler ce qui manque au bureau et préparer la commande.",
@@ -101,7 +102,7 @@
     token = t; user = { email: p.email, name: p.given_name || p.name || p.email, picture: p.picture || "" };
     gateError = ""; store.set("rumeur_tok", t);
     try { history = JSON.parse(store.get("rumeur_chat_" + user.email) || "[]"); } catch (e) { history = []; }
-    chatId = store.get("rumeur_chatid_" + user.email) || null; chats = null;
+    chatId = store.get("rumeur_chatid_" + user.email) || null; conv = { id: chatId }; chats = null;
     renderAccount(); show(current());
   }
   function signOut(silent) {
@@ -424,7 +425,8 @@
     chatsLoading = true; renderChats();
     try {
       chats = (await api("chats_list")).chats || [];
-      if (history.length && !chatId) await persistChat();   // conversation en cours d'avant l'historique
+      if (chatId) await syncChat();   // reprendre la version du Drive (autre appareil, conversation > 40 messages)
+      else if (history.length) await persistChat();   // conversation en cours d'avant l'historique
     } catch (e) { chats = chats || []; }
     finally { chatsLoading = false; renderChats(); }
   }
@@ -444,30 +446,51 @@
       ${!chatsLoading && !list.length ? `<p class="mini">Vos conversations apparaîtront ici. Elles sont enregistrées dans le Drive et visibles seulement par vous.</p>` : ""}
       <ul>${list.map(c => `<li class="${c.id === chatId ? "on" : ""}"><button type="button" class="chat-it" data-chat-open="${esc(c.id)}"><span>${esc(c.titre)}</span><small>${esc(ago(c.maj))}</small></button>${delAsk === c.id ? `<button type="button" class="chat-del sure" data-chat-del="${esc(c.id)}">Supprimer</button>` : `<button type="button" class="chat-del" data-chat-ask="${esc(c.id)}" aria-label="Supprimer la conversation">×</button>`}</li>`).join("")}</ul>`;
   }
-  async function persistChat() {
-    const keep = history.filter((m) => !m.error);
-    if (!keep.length) return;
+  async function syncChat() {
+    const c0 = conv, n0 = history.length;
     try {
-      const r = (await api("chat_save", { id: chatId, messages: keep })).result || {};
-      if (!r.id) return;
-      chatId = r.id; store.set("rumeur_chatid_" + user.email, chatId);
-      chats = (chats || []).filter(c => c.id !== r.id);
-      chats.unshift({ id: r.id, titre: r.titre, maj: Date.now(), n: keep.length });
-      renderChats();
-    } catch (e) { /* l'historique local reste dans le navigateur */ }
+      const c = (await api("chat_get", { id: c0.id })).chat;
+      if (c && c0 === conv && !busy && history.length === n0) { history = c.messages || []; saveHistory(); renderMsgs(); }
+    } catch (e) {
+      if (/introuvable/i.test(e.message) && c0 === conv && !busy) newChat();   // supprimée depuis un autre appareil
+    }
+  }
+  function chatTitle(msgs) {
+    const f = msgs.find((m) => m.role === "user");
+    let t = String(f && (f.display || f.content) || "Conversation").replace(/\s+/g, " ").trim();
+    if (t.length > 70) { t = t.slice(0, 69); const sp = t.lastIndexOf(" "); if (sp > 40) t = t.slice(0, sp); t += "…"; }
+    return t;
+  }
+  // Les enregistrements passent un par un : chacun connaît l'id créé par le précédent,
+  // et une réponse qui arrive après « + Nouvelle » ou l'ouverture d'une autre conversation
+  // ne détourne plus la conversation affichée vers l'ancien fichier.
+  function persistChat() {
+    const keep = history.filter((m) => !m.error), c = conv;
+    if (!keep.length) return saveQ;
+    return saveQ = saveQ.then(async () => {
+      try {
+        const r = (await api("chat_save", { id: c.id, titre: chatTitle(keep), messages: keep })).result || {};
+        if (!r.id) return;
+        c.id = r.id;
+        if (c === conv) { chatId = r.id; store.set("rumeur_chatid_" + user.email, chatId); }
+        chats = (chats || []).filter(x => x.id !== r.id);
+        chats.unshift({ id: r.id, titre: r.titre, maj: Date.now(), n: keep.length });
+        renderChats();
+      } catch (e) { /* l'historique local reste dans le navigateur */ }
+    });
   }
   async function openChat(id) {
     if (busy || id === chatId) { chatsOpen = false; renderChats(); return; }
     try {
       const c = (await api("chat_get", { id })).chat;
-      history = c.messages || []; chatId = c.id; pending = [];
+      history = c.messages || []; chatId = c.id; conv = { id: c.id }; pending = [];
       store.set("rumeur_chatid_" + user.email, chatId); saveHistory();
       chatsOpen = false; renderPending(); renderMsgs(); renderChats();
     } catch (e) { toast(e.message); }
   }
   function newChat() {
     if (busy) return;
-    history = []; pending = []; chatId = null; store.del("rumeur_chatid_" + user.email);
+    history = []; pending = []; chatId = null; conv = { id: null }; store.del("rumeur_chatid_" + user.email);
     saveHistory(); chatsOpen = false; renderPending(); renderMsgs(); renderChats();
     const ta = $("prompt"); if (ta) ta.focus();
   }
