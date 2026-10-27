@@ -2,17 +2,18 @@
    Fond clair légèrement gris, cartes blanches à filet fin, police Aeonik Pro, typographie sobre.
    Chargé après les autres feuilles : il redéfinit les couleurs et l'échelle typographique. */
 
-/* Aeonik Pro : utilisée si elle est installée sur l'ordinateur, ou si les fichiers web sont déposés dans /fonts. */
-@font-face{font-family:"Aeonik Pro";font-weight:300;font-style:normal;font-display:swap;src:local("Aeonik Pro Light"),local("AeonikPro-Light"),url("fonts/AeonikPro-Light.woff2") format("woff2")}
-@font-face{font-family:"Aeonik Pro";font-weight:400;font-style:normal;font-display:swap;src:local("Aeonik Pro Regular"),local("Aeonik Pro"),local("AeonikPro-Regular"),url("fonts/AeonikPro-Regular.woff2") format("woff2")}
-@font-face{font-family:"Aeonik Pro";font-weight:500;font-style:normal;font-display:swap;src:local("Aeonik Pro Medium"),local("AeonikPro-Medium"),url("fonts/AeonikPro-Medium.woff2") format("woff2")}
-@font-face{font-family:"Aeonik Pro";font-weight:700;font-style:normal;font-display:swap;src:local("Aeonik Pro Bold"),local("AeonikPro-Bold"),url("fonts/AeonikPro-Bold.woff2") format("woff2")}
+/* Aeonik (fichiers web dans /fonts, sous-ensemble latin). */
+@font-face{font-family:"Aeonik";font-weight:300;font-style:normal;font-display:swap;src:url("fonts/Aeonik-Light.woff") format("woff")}
+@font-face{font-family:"Aeonik";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/Aeonik-Regular.woff") format("woff")}
+@font-face{font-family:"Aeonik";font-weight:400;font-style:italic;font-display:swap;src:url("fonts/Aeonik-RegularItalic.woff") format("woff")}
+@font-face{font-family:"Aeonik";font-weight:500;font-style:normal;font-display:swap;src:url("fonts/Aeonik-Medium.woff") format("woff")}
+@font-face{font-family:"Aeonik";font-weight:600 700;font-style:normal;font-display:swap;src:url("fonts/Aeonik-Bold.woff") format("woff")}
 
 :root,:root[data-theme]{
   --bg:#F6F6F4; --tile:#FFFFFF; --ink:#141414; --muted:#74746F; --line:#E4E4E0; --soft:#EFEFEC;
   --blue:#141414; --blue-btn:#141414; --hero-bg:#FFFFFF; --hero-ink:#141414; --hero-muted:#74746F;
   --nav:rgba(246,246,244,.86); --logo-filter:none; --hot:#C2410C; --ok:#2F7D3A; --warn:#A16207;
-  --font:"Aeonik Pro","Aeonik","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --font:"Aeonik","Aeonik Pro","Helvetica Neue",Helvetica,Arial,sans-serif;
   color-scheme:light;
 }
 html{background:var(--bg)}
@@ -139,3 +140,4 @@ select{font:400 13px var(--font);background-color:var(--tile)}
 .big.has-img select,.big.has-img:nth-child(odd) select{color:#F5F5F7;border-color:rgba(255,255,255,.4);background-color:transparent}
 .big.has-img a,.big.has-img:nth-child(odd) a{color:#fff;text-decoration-color:rgba(255,255,255,.5)}
 @media (max-width:600px){.big .titre{font-size:15px}.big h2{font-size:28px}.hero h1{font-size:28px}.hero p{font-size:15px}}
+.big>.cover{position:absolute!important;inset:0;z-index:0}.cover span{color:rgba(255,255,255,.08)}
