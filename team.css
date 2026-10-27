@@ -497,3 +497,9 @@ a.btn.primary{color:#fff}
 .onb-tour .mini{margin:0}
 .onb-tour .row{display:flex;gap:8px;justify-content:flex-end}
 .onb-note{margin-top:14px!important;padding:12px 16px;border-radius:12px;background:var(--soft)}
+.onb-fn{margin-top:14px;max-width:360px}
+.onb-role{margin-top:24px;padding:16px 20px;border-radius:14px;border:1px solid var(--ink);background:var(--tile)}
+.onb-role.todo{border-style:dashed;border-color:var(--line)}
+.onb-role .eyebrow{margin:0 0 6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.onb-role ul{margin:0;padding-left:18px}
+.onb-role p.mini{margin:0}

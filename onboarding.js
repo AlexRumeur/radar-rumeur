@@ -1,4 +1,5 @@
-/* Bienvenue (« #bienvenue ») : le guide d'onboarding interactif de RUMEUR, en quatre parties.
+/* Bienvenue (« #bienvenue ») : le guide d'onboarding interactif de RUMEUR, en quatre étapes.
+   Base commune à tous, plus un encadré « Pour votre rôle » par étape selon la fonction choisie.
    1. Présentation · 2. L'équipe · 3. Premiers jours & outils · 4. Organisation du travail.
    Chaque partie se marque « lue » ; la partie 3 a ses cases à cocher (premiers jours, accès aux outils).
    L'avancement vient du backend (action onb_get / onb_check) ; tant que le backend ne connaît pas encore
@@ -7,7 +8,7 @@
   const T = window.RumeurTeam;
   if (!T) return;
   const { esc } = T;
-  let st = { fait: null, loading: false, local: false, part: null, qui: "" };
+  let st = { fait: null, loading: false, local: false, part: null, qui: "", role: null };
 
   // ───────── Contenu du guide ─────────
   const SITE_RUMEUR = "https://rumeur.global/";
@@ -55,6 +56,15 @@
     ["L'avancement", "Statut, prochaines étapes et éléments en attente."],
     ["Les priorités", "Urgences, difficultés et décisions nécessaires."],
   ];
+  // Fonctions et contenus propres à chacune, étape par étape (fournis par l'équipe au fur et à mesure).
+  // Une étape sans contenu pour la fonction affiche « à compléter » : on n'invente rien.
+  const ROLES = [
+    { id: "", label: "Base commune (toutes fonctions)" },
+    { id: "commercial", label: "Directrice de clientèle et commerciale" },
+  ];
+  const ROLE_CONTENT = {
+    commercial: { p1: null, p2: null, p3: null, p4: null },
+  };
   const ALL_IDS = [...PARTS.map((p) => p.id), ...PREMIERS_JOURS.map((x) => x.id), ...OUTILS.map((x) => x.id)];
 
   // ───────── Visite guidée : chaque étape pointe un onglet ─────────
@@ -72,6 +82,15 @@
   const localKey = () => "rumeur_onb_" + (user().email || "");
   const localGet = () => { try { return JSON.parse(localStorage.getItem(localKey()) || "{}"); } catch (e) { return {}; } };
   const localSet = (v) => { try { localStorage.setItem(localKey(), JSON.stringify(v)); } catch (e) {} };
+  const roleGet = () => { try { return localStorage.getItem(localKey() + "_role") || ""; } catch (e) { return ""; } };
+  const roleSet = (v) => { try { localStorage.setItem(localKey() + "_role", v); } catch (e) {} };
+
+  function roleBox(p) {
+    if (!st.role) return "";
+    const r = ROLES.find((x) => x.id === st.role), c = (ROLE_CONTENT[st.role] || {})[p.id];
+    const body = c && c.length ? `<ul>${c.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : `<p class="mini">Contenu à compléter pour cette fonction.</p>`;
+    return `<aside class="onb-role${c && c.length ? "" : " todo"}"><p class="eyebrow">Pour votre rôle · ${esc(r ? r.label : "")}</p>${body}</aside>`;
+  }
   const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
   async function load() {
@@ -152,6 +171,7 @@
     if (!st.fait) { if (!st.loading) load(); root.innerHTML = `<div class="in"><div class="loading">Chargement…</div></div>`; return; }
     const fait = st.fait;
     const n = ALL_IDS.filter((id) => fait[id]).length, pct = Math.round((n / ALL_IDS.length) * 100);
+    if (st.role === null) st.role = roleGet();
     if (!st.part) st.part = (PARTS.find((p) => !fait[p.id]) || PARTS[0]).id;
     const p = PARTS.find((x) => x.id === st.part), i = PARTS.indexOf(p), next = PARTS[i + 1];
 
@@ -162,16 +182,18 @@
       <header class="vhead"><p class="eyebrow">RUMEUR — Guide d'onboarding</p><h1>Bienvenue chez RUMEUR${prenom() ? ", " + esc(prenom()) : ""}.</h1>
         <p>Ce guide vous aide à prendre vos repères chez RUMEUR : découvrir l'entreprise et l'équipe, comprendre notre organisation et connaître les outils utilisés au quotidien.</p>
         <p class="mini">Selon votre poste, votre responsable vous présentera les projets, les outils et les procédures qui concernent vos missions.</p>
+        <form class="form onb-fn" id="onb-fn"><label>Votre fonction<select name="role">${ROLES.map((r) => `<option value="${esc(r.id)}"${r.id === st.role ? " selected" : ""}>${esc(r.label)}</option>`).join("")}</select></label></form>
       </header>
       <div class="onb-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Avancement du guide"><i style="width:${pct}%"></i></div>
       <p class="mini onb-count">${pct} % du guide${st.local ? " · avancement gardé dans ce navigateur" : ""}</p>
-      <nav class="onb-tabs" aria-label="Parties du guide">${nav}</nav>
+      <nav class="onb-tabs" aria-label="Étapes du guide">${nav}</nav>
       <article class="onb-part" aria-labelledby="onb-h">
-        <p class="eyebrow">Partie ${p.n} sur ${PARTS.length}</p><h2 id="onb-h">${esc(p.titre)}</h2>
+        <p class="eyebrow">Étape ${p.n} sur ${PARTS.length}</p><h2 id="onb-h">${esc(p.titre)}</h2>
         ${partBody(p)}
+        ${roleBox(p)}
         <div class="onb-foot">
           ${i ? `<button type="button" class="btn ghost" data-onb-part="${PARTS[i - 1].id}">← Précédent</button>` : "<span></span>"}
-          <button type="button" class="btn primary" data-onb-read="${p.id}">${fait[p.id] ? (next ? "Partie suivante →" : "Guide terminé ✓") : next ? "J'ai lu, partie suivante →" : "J'ai lu le guide"}</button>
+          <button type="button" class="btn primary" data-onb-read="${p.id}">${fait[p.id] ? (next ? "Étape suivante →" : "Guide terminé ✓") : next ? "J'ai lu, étape suivante →" : "J'ai lu le guide"}</button>
         </div>
       </article>
       <section class="blk onb-ask"><h3>Une question ?</h3>
@@ -227,7 +249,10 @@
     }
   });
   document.addEventListener("keydown", (e) => { if (tour && e.key === "Escape") tourEnd(); });
-  document.addEventListener("change", (e) => { const c = e.target.closest("[data-onb-step]"); if (c) toggle(c.dataset.onbStep, c.checked); });
+  document.addEventListener("change", (e) => {
+    const c = e.target.closest("[data-onb-step]"); if (c) { toggle(c.dataset.onbStep, c.checked); return; }
+    if (e.target.closest("#onb-fn")) { st.role = e.target.value; roleSet(st.role); render(); }
+  });
   document.addEventListener("input", (e) => {
     if (!e.target.closest("#onb-qui")) return;
     st.qui = e.target.value;
