@@ -52,6 +52,7 @@
         <p class="selstats"><b>${s.n || 0}</b> ${esc(TY(s).des)}${s.publie ? ` · <b>${s.vues || 0}</b> vue(s) · <b>${s.retours || 0}</b> retour(s)` : ""}</p>
         <p class="mini">${esc(String(s.owner || "").split("@")[0])}</p></a>`).join("")}</div>
     </div>`;
+    if (st.run && root.querySelector("#sel-run")) st.run.mount(root.querySelector("#sel-run"));
     wire(root);
   }
 
@@ -63,7 +64,7 @@
     finally { st.loading = false; render(); }
   }
   function renderEditor(root, id) {
-    if (st.selId !== id) { st = Object.assign(st, { sel: null, selId: id, thumbs: st.thumbs, pending: [], draft: "", busy: "", err: "", open: {} }); loadSel(id); }
+    if (st.selId !== id) { st = Object.assign(st, { sel: null, selId: id, thumbs: st.thumbs, pending: [], draft: "", busy: "", run: null, runKey: "", err: "", open: {} }); loadSel(id); }
     const s = st.sel;
     if (!s) { root.innerHTML = `<div class="in"><p class="back"><a href="#lieux">← Sélections</a></p>${st.err ? `<div class="gate"><h2>Sélection indisponible.</h2><p>${esc(st.err)}</p></div>` : `<div class="loading">Ouverture…</div>`}</div>`; return; }
     const link = publicLink(s);
@@ -99,7 +100,7 @@
         <label for="sel-text" class="drop-h">${s.lieux.length ? "Ajouter des " + esc(ty.des) : "Importer la présentation"} <span class="mini">— une présentation déposée est analysée automatiquement, puis les photos HD sont cherchées sur les liens</span></label>
         <textarea id="sel-text" rows="3" placeholder="${esc(ty.drop)}">${esc(st.draft)}</textarea>
         <div class="pending">${st.pending.map((f, i) => `<span class="tag ${f.status === "error" ? "hot" : ""}">${f.preview ? `<img src="${f.preview}" alt="">` : "📎"} ${esc(f.label || f.name)}${f.status === "uploading" ? " …" : ""}<button type="button" data-sel-unpend="${i}" aria-label="Retirer">×</button></span>`).join("")}</div>
-        ${st.busy ? `<p class="busy">${esc(st.busy)}</p>` : ""}
+        ${st.busy ? `<div class="runbox" id="sel-run"></div>` : ""}
         <div class="drop-bar">
           <span><button type="button" class="btn ghost small" data-sel-attach="1">Ajouter des fichiers</button>
           ${projets.length ? `<select data-sel-ws aria-label="Importer depuis un workspace projet"><option value="">Importer d'un workspace projet…</option>${projets.map((p) => `<option value="${esc(p["Code projet"] || "")}">${esc((p["Code projet"] || "") + " — " + (p["Nom du projet"] || ""))}</option>`).join("")}</select>` : ""}</span>
@@ -114,6 +115,7 @@
 
       <p class="mini" style="margin-top:28px"><button type="button" class="linkbtn danger" data-sel-del="1">Supprimer cette sélection</button></p>
     </div>`;
+    if (st.run && root.querySelector("#sel-run")) st.run.mount(root.querySelector("#sel-run"));
     wire(root);
     fetchThumbs();
   }
@@ -183,6 +185,14 @@
   async function flush() { clearTimeout(saveT); if (st.dirty) await save(); }
 
   // ───────── Dépôt et analyse ─────────
+  // Suivi en direct : une seule liste d'étapes du dépôt de la prez jusqu'aux photos HD.
+  function step(key, t, d) {
+    const fresh = !st.run; if (fresh) { st.run = T.makeRun("L'assistant prépare la sélection"); st.runKey = ""; }
+    if (st.runKey === key) st.run.detail(d || ""); else { st.runKey = key; st.run.local(t, d); }
+    const was = st.busy; st.busy = t;
+    if (fresh || !was) render();
+  }
+  function endRun() { if (st.run) st.run.stop(); st.run = null; st.runKey = ""; st.busy = ""; render(); }
   async function upload(f, extra) {
     const item = Object.assign({ name: f.name || "photo.jpg", status: "uploading", preview: "" }, extra || {});
     if (/^image\//.test(f.type) && !item.hidden) { try { item.preview = URL.createObjectURL(f); } catch (e) {} }
@@ -200,8 +210,8 @@
       const kind = window.RumeurExtract && window.RumeurExtract.kindOf(f);
       if (kind) {
         try {
-          st.busy = "Lecture de " + f.name + "…"; render();
-          const r = await window.RumeurExtract.deck(f, (t) => { st.busy = f.name + " : " + t; const b = document.querySelector("#v-lieux .busy"); if (b) b.textContent = st.busy; });
+          step("lire" + f.name, "Lecture de " + f.name, "ouverture du fichier");
+          const r = await window.RumeurExtract.deck(f, (t) => step("lire" + f.name, "Lecture de " + f.name, t));
           if (f.size < 20 * 1024 * 1024 && kind === "pdf") { await upload(f, { label: f.name }); }
           if (r.text) await upload(r.text, { label: "textes de " + f.name, hidden: true });
           const head = { name: f.name, label: r.images.length + " photo(s) extraites de " + f.name + " (" + r.pages + " pages)", status: "uploading", group: [] };
@@ -212,17 +222,17 @@
               try { return (await T.api("upload", { file: { name: im.name, mimeType: "image/jpeg", data: await T.readB64(im) } })).file.id; } catch (e) { return null; }
             }));
             ids.filter(Boolean).forEach((id) => head.group.push(id)); done += ids.length;
-            st.busy = "Envoi des photos " + done + "/" + r.images.length + "…"; const b = document.querySelector("#v-lieux .busy"); if (b) b.textContent = st.busy;
+            step("envoi" + f.name, "Envoi des photos vers le Drive", done + " / " + r.images.length);
           }
           head.status = "ok";
           if (!r.images.length) T.toast("Aucune photo trouvée dans " + f.name + " : le texte sera quand même analysé.");
         } catch (e) { T.toast(f.name + " : " + e.message); }
-        st.busy = ""; render();
         st.autoGo = true;
       } else { await upload(f); render(); }
     }
     // Présentation déposée : on lance l'analyse tout de suite (le texte éventuel est pris aussi).
     if (st.autoGo && !st.pending.some((x) => x.status === "uploading")) { st.autoGo = false; analyze(); }
+    else if (st.run && !st.autoGo) endRun();
   }
   function pendingIds() {
     const ids = [];
@@ -233,33 +243,35 @@
     const text = (st.draft || "").trim(), files = pendingIds();
     if (!text && !files.length) { T.toast("Déposez une présentation, des photos ou un texte."); return; }
     await flush();
-    st.busy = "L'assistant lit la présentation et crée les fiches (30 s à 2 min)…"; render();
+    step("ia", "Envoi à l'assistant", files.length ? files.length + " fichier(s)" : "texte");
     try {
-      st.sel = (await T.api("sel_analyze", { id: st.sel.id, files, text })).selection;
+      const keep = st.sel.lieux.length;
+      st.sel = (await T.track("sel_analyze", { id: st.sel.id, files, text }, st.run)).selection;
       st.pending = []; st.draft = ""; st.dirty = false;
-      T.toast(st.sel.lieux.length + " " + TY(st.sel).des + " dans la sélection");
-    } catch (e) { T.toast(e.message); st.busy = ""; render(); return; }
-    st.busy = ""; render();
+      T.toast((st.sel.lieux.length - keep) + " " + TY(st.sel).des + " ajouté(e)s à la sélection");
+    } catch (e) { T.toast(e.message); endRun(); return; }
+    render();
     // Automatique : si des lieux ont un lien, on va chercher leurs photos en haute définition.
-    if (st.sel.lieux.some((l) => (l.liens || []).length)) await fetchHd("");
+    if (st.sel.lieux.some((l) => (l.liens || []).length)) await fetchHd("", true);
+    else endRun();
   }
-  async function fetchHd(lieu) {
+  async function fetchHd(lieu, chained) {
     await flush();
-    st.busy = (lieu ? "Recherche des photos HD sur le lien…" : "Recherche des photos en haute définition sur les liens (1 à 2 min)…"); render();
+    step("hd", lieu ? "Photos HD depuis le lien" : "Photos HD depuis les liens");
     try {
-      const r = await T.api("sel_hd", { id: st.sel.id, lieu: lieu || "" });
+      const r = await T.track("sel_hd", { id: st.sel.id, lieu: lieu || "" }, st.run);
       st.sel = r.selection; st.dirty = false;
       T.toast(r.message || "Terminé");
     } catch (e) { T.toast(e.message); }
-    finally { st.busy = ""; render(); }
+    finally { endRun(); }
   }
   async function importWs(code) {
     if (!code) return;
     await flush();
-    st.busy = "Import du workspace " + code + "…"; render();
-    try { st.sel = (await T.api("sel_from_ws", { id: st.sel.id, code })).selection; T.toast("Import terminé"); }
+    step("ws", "Import du workspace " + code);
+    try { st.sel = (await T.track("sel_from_ws", { id: st.sel.id, code }, st.run)).selection; T.toast("Import terminé"); }
     catch (e) { T.toast(e.message); }
-    finally { st.busy = ""; render(); }
+    finally { endRun(); }
   }
 
   // ───────── Événements ─────────

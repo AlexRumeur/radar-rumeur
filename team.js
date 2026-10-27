@@ -17,7 +17,7 @@
 
   let token = null, user = null, dash = null, dashLoading = false, gisReady = false, gateError = "";
   let radarState = "";
-  let history = [], pending = [], busy = false, chatId = null, chats = null, chatsLoading = false, chatsOpen = false, delAsk = null;
+  let history = [], pending = [], busy = false, run = null, runKey = "", chatId = null, chats = null, chatsLoading = false, chatsOpen = false, delAsk = null;
   const DEMO = new URLSearchParams(location.search).has("demo");
 
   // ───────── Mode démo : données fictives, aucun appel serveur ─────────
@@ -445,7 +445,7 @@
       </div></div>`;
       wireComposer();
     }
-    renderMsgs();
+    renderMsgs(busy);
     renderChats();
     if (!chats && !chatsLoading) loadChats();
   }
@@ -515,8 +515,11 @@
     }
     box.innerHTML = history.map((m) => {
       if (m.role === "user") return `<div class="msg me">${esc(m.display || m.content)}${m.files && m.files.length ? `<div class="files">📎 ${m.files.map(esc).join(", ")}</div>` : ""}</div>`;
+      const tr = m.trace && m.trace.steps && m.trace.steps.length > 1 ? m.trace : null;
+      if (tr) return `<div class="msg bot${m.error ? " err" : ""}"><details class="trace"><summary>${tr.n} étapes · ${Math.floor(tr.ms / 60000)}:${String(Math.round(tr.ms / 1000) % 60).padStart(2, "0")}</summary><ol>${tr.steps.map((x) => `<li>${esc(x.t)}${x.d ? ` <span>${esc(x.d)}</span>` : ""}</li>`).join("")}</ol></details>${md(m.content)}</div>`;
       return `<div class="msg bot${m.error ? " err" : ""}">${md(m.content)}${m.actions && m.actions.length ? `<div class="acts">${m.actions.map((a) => `<span class="tag ${a.ok ? "ok" : "hot"}">${a.ok ? "✓" : "✗"} ${esc(TOOL_LABELS[a.outil] || a.outil)}</span>`).join("")}</div>` : ""}</div>`;
-    }).join("") + (typing ? `<div class="typing"><i></i><i></i><i></i> L'assistant travaille… (jusqu'à une minute pour les actions Drive)</div>` : "");
+    }).join("") + (typing ? `<div class="runbox" id="runbox"></div>` : "");
+    if (typing && run) run.mount($("runbox"));
     box.lastElementChild && box.lastElementChild.scrollIntoView({ block: "end", behavior: "smooth" });
   }
 
@@ -562,13 +565,13 @@
   async function extractDeck(item, wantPhotos) {
     const f = item.deckFile; if (!f || item.extraits) return;
     item.extraits = [];
-    const label = (t) => { const el = document.querySelector(".typing"); if (el) el.lastChild.textContent = " " + t; };
-    const r = await window.RumeurExtract.deck(f, (t) => label(f.name + " : " + t), { textOnly: !wantPhotos });
+    const label = (key, t, d) => { if (!run) return; if (runKey === key) run.detail(d || t); else { runKey = key; run.local(t, d); } };
+    const r = await window.RumeurExtract.deck(f, (t) => label("lire" + f.name, "Lecture de " + f.name, t), { textOnly: !wantPhotos });
     if (item.kind === "pptx" && r.text) { try { item.extraits.push({ id: await uploadOne(r.text), name: r.text.name, texte: true }); } catch (e) {} }
     if (!wantPhotos || r.images.length < 3) return;
     if (item.kind === "pdf" && r.text) { try { item.extraits.push({ id: await uploadOne(r.text), name: r.text.name, texte: true }); } catch (e) {} }
     let done = 0;
-    const got = await X().pool(r.images, 4, async (im) => { try { const id = await uploadOne(im); done++; label("Envoi des photos de " + f.name + " : " + done + "/" + r.images.length); return { id, name: im.name }; } catch (e) { return null; } });
+    const got = await X().pool(r.images, 4, async (im) => { try { const id = await uploadOne(im); done++; label("photos" + f.name, "Envoi des photos de " + f.name, done + " / " + r.images.length); return { id, name: im.name }; } catch (e) { return null; } });
     got.filter(Boolean).forEach((g) => item.extraits.push(g));
   }
 
@@ -606,7 +609,7 @@
       const content = text || "Voici le(s) fichier(s) joint(s).";
       history.push({ role: "user", content, files: files.map((f) => f.name) });
       ta.value = ""; grow(); pending = []; renderPending();
-      busy = true; renderPending(); renderMsgs(true);
+      busy = true; run = makeRun(); runKey = ""; renderPending(); renderMsgs(true);
       try {
         const want = NEED_PHOTOS.test(text);
         for (const f of files.filter((x) => x.deckFile && (want || x.kind === "pptx"))) {
@@ -614,13 +617,15 @@
         }
         const msgs = history.filter((m) => !m.error).map((m) => ({ role: m.role, content: m.content }));
         const att = []; files.forEach((f) => { if (f.id) att.push({ id: f.id, name: f.name }); (f.extraits || []).forEach((x) => att.push(x.texte ? { id: x.id, name: x.name } : { id: x.id, name: x.name, extrait: true })); });
-        const out = await api("chat", { messages: msgs, attachments: att });
+        const out = await track("chat", { messages: msgs, attachments: att }, run);
+        run.stop();
         if (out.lastUserText) history[history.length - 1].content = out.lastUserText, history[history.length - 1].display = content;
-        history.push({ role: "assistant", content: out.reply + (out.memo || ""), actions: out.actions || [] });
+        history.push({ role: "assistant", content: out.reply + (out.memo || ""), actions: out.actions || [], trace: run.summary() });
         if ((out.actions || []).some((a) => a.ok && !/^(lire|chercher|lister|tableau)/.test(a.outil))) dash = null;
       } catch (err) {
         history.push({ role: "assistant", content: "Je n'ai pas pu répondre : " + err.message, error: true });
       } finally {
+        if (run) run.stop(); run = null;
         busy = false; saveHistory(); renderPending(); renderMsgs();
         persistChat();
       }
@@ -674,7 +679,78 @@
 
   // ───────── Workspace (workspace.js) ─────────
   function renderWorkspace() { if (window.RumeurTeam && window.RumeurTeam.renderWorkspace) window.RumeurTeam.renderWorkspace(); }
-  window.RumeurTeam = { api, esc, toast, readB64, linkOf, wsCodeFromHash, current, getUser: () => user, getDash: () => dash };
+  // ───────── Suivi en direct : les étapes de l'assistant s'affichent pendant qu'il travaille ─────────
+  // run.local(t, d) ajoute une étape côté page ; track(action, payload, run) envoie l'appel et lit les étapes du serveur.
+  function makeRun(title) {
+    const items = []; let base = 0, el = null, t0 = Date.now(), timer = null, live = true;
+    const fmt = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+    function li(it) {
+      const n = document.createElement("li");
+      n.innerHTML = `<i aria-hidden="true"></i><span class="rs-t"></span><span class="rs-d"></span>`;
+      return n;
+    }
+    function paint() {
+      if (!el || !el.isConnected) return;
+      const ol = el.querySelector("ol");
+      items.forEach((it, k) => {
+        let n = ol.children[k]; if (!n) { n = li(it); ol.appendChild(n); }
+        const state = it.done || !live || k < items.length - 1 ? "done" : "now";
+        if (n.dataset.state !== state) { n.dataset.state = state; n.className = state; }
+        const t = n.querySelector(".rs-t"), d = n.querySelector(".rs-d");
+        if (t.textContent !== it.t) t.textContent = it.t;
+        if (d.textContent !== (it.d || "")) d.textContent = it.d || "";
+      });
+      while (ol.children.length > items.length) ol.lastChild.remove();
+      const tm = el.querySelector(".run-time"); if (tm) tm.textContent = fmt(Date.now() - t0);
+      const h = el.querySelector(".run-h b"); if (h) h.textContent = live ? (title || "L'assistant travaille") : "Terminé";
+      el.classList.toggle("over", !live);
+    }
+    const run = {
+      mount(node) {
+        el = node; el.classList.add("run"); el.setAttribute("aria-live", "polite");
+        el.innerHTML = `<div class="run-h"><span class="run-orb" aria-hidden="true"></span><b></b><span class="run-time"></span></div><ol></ol>`;
+        paint();
+        if (!timer) timer = setInterval(() => { if (!el || !el.isConnected) return; const tm = el.querySelector(".run-time"); if (tm && live) tm.textContent = fmt(Date.now() - t0); }, 1000);
+        return run;
+      },
+      local(t, d) { items.forEach((x) => x.done = true); items.push({ t, d: d || "" }); base = items.length; paint(); },
+      detail(d) { if (items.length) { items[items.length - 1].d = d; paint(); } },
+      server(steps) {
+        items.splice(base); if (base) items.forEach((x) => x.done = true);
+        (steps || []).forEach((x) => items.push({ t: x.t, d: x.d || "", done: !!x.done })); paint();
+      },
+      begin() { items.forEach((x) => x.done = true); base = items.length; },
+      stop() { live = false; clearInterval(timer); timer = null; paint(); },
+      summary() { return { n: items.length, ms: Date.now() - t0, steps: items.map((x) => ({ t: x.t, d: x.d })) }; },
+      get live() { return live; },
+    };
+    return run;
+  }
+  const DEMO_STEPS = {
+    chat: [["Analyse de la demande"], ["Cherche dans le Drive", "devis BODY"], ["Lit un fichier", "Devis v3.pdf"], ["Réfléchit à la suite"]],
+    sel_analyze: [["Lecture des fichiers déposés", "12 fichier(s)"], ["Analyse de la présentation par l'IA", "Repère chaque lieu, son nom, ses infos et ses photos"], ["Création des fiches", "1 lieu(s)"]],
+    sel_hd: [["Ouverture des liens", "4 page(s) à explorer"], ["Téléchargement des photos HD", "9 photo(s) en haute définition trouvée(s)"], ["Vérification visuelle", "Compare les photos des sites avec celles de la présentation"], ["Mise à jour des fiches"]],
+    sel_from_ws: [["Import du workspace"]],
+  };
+  async function track(action, payload, run) {
+    if (!run) return api(action, payload);
+    run.begin();
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    let stop = false, busyPoll = false;
+    if (DEMO) {
+      const seq = DEMO_STEPS[action] || []; let k = 0;
+      const t = setInterval(() => { if (stop) return; k = Math.min(seq.length, k + 1); run.server(seq.slice(0, k).map(([t2, d], j) => ({ t: t2, d, done: j < k - 1 }))); }, 700);
+      try { await new Promise((r) => setTimeout(r, 700 * (seq.length + 1))); return await api(action, payload); } finally { stop = true; clearInterval(t); }
+    }
+    const t = setInterval(async () => {
+      if (stop || busyPoll) return; busyPoll = true;
+      try { const j = (await api("job", { id })).job; if (!stop && j && j.steps) run.server(j.steps); } catch (e) {}
+      busyPoll = false;
+    }, 1500);
+    try { return await api(action, Object.assign({}, payload, { job: id })); }
+    finally { stop = true; clearInterval(t); }
+  }
+  window.RumeurTeam = { api, esc, toast, readB64, makeRun, track, linkOf, wsCodeFromHash, current, getUser: () => user, getDash: () => dash };
 
   // ───────── Démarrage ─────────
   if (DEMO) {

@@ -67,6 +67,7 @@ function doPost(e) {
   }
   let user;
   try { user = verifyUser(req.idToken); } catch (err) { return json({ ok: false, error: 'unauthorized', message: String(err.message || err) }); }
+  jobStart(req, user);
   try {
     const out = route(req, user);
     return json(Object.assign({ ok: true }, out));
@@ -76,8 +77,43 @@ function doPost(e) {
   }
 }
 
+// ───────────────────────── Suivi en direct des tâches longues ─────────────────────────
+// La page envoie un identifiant « job » avec l'appel long, puis demande « job » toutes les 1,5 s pour afficher les étapes.
+var JOB = null;
+function jobKey(id, email) { return 'job_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, email + '|' + id)).slice(0, 30); }
+function jobStart(req, user) { JOB = req.job ? { key: jobKey(String(req.job).slice(0, 60), user.email), steps: [], last: 0 } : null; }
+function jobPut(force) {
+  if (!JOB) return;
+  const now = Date.now(); if (!force && now - JOB.last < 800) return; JOB.last = now;
+  try { CacheService.getScriptCache().put(JOB.key, JSON.stringify({ steps: JOB.steps.slice(-40) }), 900); } catch (e) {}
+}
+/** Nouvelle étape affichée dans la page ; la précédente passe en « faite ». */
+function jobStep(label, detail) {
+  if (!JOB) return;
+  JOB.steps.forEach(x => x.done = true);
+  JOB.steps.push({ t: String(label).slice(0, 120), d: detail ? String(detail).slice(0, 160) : '', at: Date.now() });
+  jobPut(true);
+}
+function jobDetail(detail) { if (!JOB || !JOB.steps.length) return; JOB.steps[JOB.steps.length - 1].d = String(detail).slice(0, 160); jobPut(false); }
+function jobGet(id, user) { const v = CacheService.getScriptCache().get(jobKey(String(id || '').slice(0, 60), user.email)); return v ? JSON.parse(v) : null; }
+const JOB_TOOLS = {
+  tableau_de_bord: "Consulte le tableau de bord", lire_feuille: "Lit un registre", ajouter_ligne: "Ajoute une ligne au registre", modifier_lignes: "Met à jour le registre",
+  creer_projet: "Crée le projet", mettre_a_jour_projet: "Met à jour le projet", creer_document_projet: "Crée un document projet", ranger_fichier: "Range un fichier dans le Drive",
+  lister_dossier: "Parcourt un dossier du Drive", chercher_drive: "Cherche dans le Drive", lire_fichier: "Lit un fichier", preparer_nda_ou_contrat: "Prépare le document juridique",
+  chercher_gmail: "Cherche dans Gmail", lire_fil_gmail: "Lit un fil de mails", enregistrer_piece_jointe: "Enregistre une pièce jointe", creer_brouillon: "Rédige un brouillon de mail",
+  envoyer_mail_interne: "Envoie un mail interne", signaler_achat: "Met à jour les achats", noter_idee: "Note l'idée", chercher_connaissances: "Consulte les process Rumeur",
+  retenir: "Mémorise l'information", guide_presentation: "Ouvre le modèle de présentation Rumeur", lire_workspace: "Ouvre le workspace projet", voir_images: "Regarde les images",
+  creer_presentation: "Crée la présentation", creer_selection_lieux: "Crée la sélection client"
+};
+function jobTool(name, i) {
+  i = i || {};
+  const d = i.titre_contient || i.requete || i.mots || i.feuille || i.code || i.titre || i.article || '';
+  jobStep(JOB_TOOLS[name] || name.replace(/_/g, ' '), typeof d === 'string' ? d : '');
+}
+
 function route(req, user) {
   switch (req.action) {
+    case 'job': return { job: jobGet(req.id, user) };
     case 'me': return { user };
     case 'dashboard': return { data: dashboard() };
     case 'radar': return { radar: radarData() };
@@ -832,6 +868,7 @@ function attachmentBlocks(attachments) {
 
 let CHAT_ATTACH = [];   // pièces jointes du message en cours (utilisées par creer_selection_lieux)
 function chat(history, attachments, user) {
+  if ((attachments || []).length) jobStep('Lecture des pièces jointes', attachments.length + ' fichier(s)');
   CHAT_ATTACH = (attachments || []).slice(0, 200).map(a => ({ id: a.id, name: a.name, extrait: !!a.extrait }));
   const ck = 'lastatt_' + user.email;
   try {
@@ -856,12 +893,16 @@ function chat(history, attachments, user) {
   const actions = [];
   let resp = null;
   for (let loop = 0; loop < MAX_TOOL_LOOPS; loop++) {
+    jobStep(loop === 0 ? 'Analyse de la demande' : 'Réfléchit à la suite');
     resp = callClaude(system, msgs, useWeb);
     msgs.push({ role: 'assistant', content: resp.content });
+    const web = (resp.content || []).filter(b => b.type === 'server_tool_use');
+    if (web.length) jobStep(web.some(b => b.name === 'web_search') ? 'Recherche sur le web' : 'Lit une page web', web.map(b => (b.input && (b.input.query || b.input.url)) || '').filter(Boolean).join(' · '));
     if (resp.stop_reason === 'pause_turn') continue;
     if (resp.stop_reason !== 'tool_use') break;
     const results = resp.content.filter(b => b.type === 'tool_use').map(b => {
       let out, isErr = false;
+      jobTool(b.name, b.input);
       try { out = runTool(b.name, b.input, user); } catch (e) { out = { erreur: String(e.message || e) }; isErr = true; }
       if (out && out.__blocks) { actions.push({ outil: b.name, ok: true, resume: out.__blocks.filter(x => x.type === 'text').map(x => x.text).join(' | ').slice(0, 300) }); return { type: 'tool_result', tool_use_id: b.id, content: out.__blocks }; }
       const str = JSON.stringify(out);
