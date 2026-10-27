@@ -221,8 +221,8 @@ function selAnalyze(p, user) {
     (notes.length ? 'Autres fichiers :\n' + notes.join('\n') + '\n' : '') +
     (linkTexts ? 'Contenu des liens :\n' + linkTexts + '\n' : '') +
     'Les photos nommées « … — p12 — 3 » ont été extraites de la page 12 de la présentation (c’est « photo p12-3 » dans la Disposition de la page) : rattache-les à ce qui est présenté sur cette page.' });
-  content.push({ type: 'text', text: 'Appelle remplir_selection avec tous les ' + T.un + 's présentés.' });
   const T = selType(s);
+  content.push({ type: 'text', text: 'Appelle remplir_selection avec tous les ' + T.un + 's présentés.' });
   const system = [{ type: 'text', text: [
     "Tu prépares, pour Rumeur (production créative à Paris), " + T.role + ". Chaque entrée de l'outil remplir_selection (appelée « lieux » dans l'outil) est un " + T.un + ".",
   ].concat(T.regles).concat([
