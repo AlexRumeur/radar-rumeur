@@ -4,8 +4,8 @@
   const CFG = window.RUMEUR_CONFIG || {};
   const DOMAIN = CFG.DOMAIN || "rumeur.paris";
   const configured = !!(CFG.API_URL && CFG.GOOGLE_CLIENT_ID);
-  const VIEWS = ["radar", "assistant", "lieux", "admin", "workspace"];
-  const PRIVATE = new Set(["radar", "assistant", "lieux", "admin", "workspace"]);
+  const VIEWS = ["radar", "assistant", "lieux", "admin", "bienvenue", "workspace"];
+  const PRIVATE = new Set(["radar", "assistant", "lieux", "admin", "bienvenue", "workspace"]);
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const store = {
@@ -217,10 +217,10 @@
   function show(v) {
     VIEWS.forEach((x) => { const el = $("v-" + x); if (el) el.hidden = x !== v; });
     document.querySelectorAll(".tabs a").forEach((t) => t.setAttribute("aria-current", t.dataset.view === v ? "page" : "false"));
-    document.title = "Rumeur Office · " + (({ radar: "Radar", assistant: "Assistant", lieux: "Sélections", admin: "Admin" }[v] || (v === "lieux" ? "Lieux" : "Workspace " + wsCodeFromHash())));
+    document.title = "Rumeur Office · " + (({ radar: "Radar", assistant: "Assistant", lieux: "Sélections", admin: "Admin", bienvenue: "Bienvenue" }[v] || (v === "lieux" ? "Lieux" : "Workspace " + wsCodeFromHash())));
     if (PRIVATE.has(v)) {
       if (!user) { renderGate(v); return; }
-      if (v !== "assistant" && v !== "workspace" && v !== "radar") loadDash(false);
+      if (v !== "assistant" && v !== "workspace" && v !== "radar" && v !== "bienvenue") loadDash(false);
       renderView(v);
     }
   }
@@ -244,6 +244,7 @@
     if (v === "assistant") return renderAssistant();
     if (v === "workspace") return renderWorkspace();
     if (v === "lieux") { if (window.RumeurTeam && window.RumeurTeam.renderLieux) window.RumeurTeam.renderLieux(); return; }
+    if (v === "bienvenue") { if (window.RumeurTeam && window.RumeurTeam.renderOnboarding) window.RumeurTeam.renderOnboarding(); return; }
     const el = $("v-" + v);
     if (!dash) { el.innerHTML = `<div class="in"><div class="loading">Chargement…</div></div>`; return; }
     if (v === "projets") el.innerHTML = viewProjets();

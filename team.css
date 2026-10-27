@@ -446,3 +446,54 @@ a.btn.primary{color:#fff}
 .dv-t thead th:first-child,.dv-t tfoot th{position:sticky;left:0;z-index:1}
 .dv-t thead th:first-child{background:var(--soft)}.dv-t tfoot th{background:var(--tile)}
 .dv-card .fcard .fk{display:none}
+
+/* Bienvenue (onboarding) */
+.onb-progress{height:6px;border-radius:6px;background:var(--soft,#eee);overflow:hidden;margin:4px 0 6px}
+.onb-progress i{display:block;height:100%;background:var(--ink);border-radius:6px;transition:width .4s}
+.onb-count{margin:0 0 18px}
+.onb-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;scroll-margin-top:80px}
+.onb-tab{display:flex;align-items:center;gap:10px;text-align:left;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--tile);color:var(--ink);font:400 14px var(--font);cursor:pointer;min-width:0}
+.onb-tab span:last-child{overflow:hidden;text-overflow:ellipsis}
+.onb-tab .num{flex:0 0 26px;height:26px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);font-size:12px;font-variant-numeric:tabular-nums}
+.onb-tab.done .num{background:var(--soft);border-color:var(--soft)}
+.onb-tab.on{border-color:var(--ink)}
+.onb-tab.on .num{background:var(--ink);border-color:var(--ink);color:#fff}
+.onb-tab:hover{border-color:var(--ink)}
+@media (max-width:734px){.onb-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.onb-part{margin-top:20px;background:var(--tile);border:1px solid var(--line);border-radius:18px;padding:28px clamp(18px,4vw,40px)}
+.onb-part>.eyebrow{margin:0;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.onb-part h2{font-size:clamp(24px,3vw,30px);font-weight:500;letter-spacing:-.01em;margin:4px 0 8px}
+.onb-sec{margin-top:22px}
+.onb-sec h3{font-size:18px;font-weight:500;margin:0 0 8px}
+.onb-sec p{max-width:68ch;margin:0 0 10px}
+.onb-sec .list{border:1px solid var(--line);margin:12px 0}
+.onb-villes{display:flex;flex-wrap:wrap;gap:8px}
+.onb-villes span{padding:6px 14px;border-radius:980px;background:var(--soft);font-size:14px}
+.onb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;margin-top:10px}
+.onb-tile{padding:14px 16px;border:1px solid var(--line);border-radius:14px}
+.onb-tile b{display:block;font-weight:500;margin-top:2px}
+.onb-tile p{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.onb-qui{margin:14px 0 12px;max-width:420px}
+.onb-people{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:10px;margin-bottom:12px}
+.onb-person{padding:14px 16px;border:1px solid var(--line);border-radius:14px;transition:opacity .2s,border-color .2s}
+.onb-person b{display:block;font-weight:500}
+.onb-person .mini{display:block;margin-top:2px}
+.onb-person p{margin:8px 0 0;font-size:13px}
+.onb-person.dim{opacity:.3}
+.onb-step{align-items:center}
+.onb-step.done .t{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.onb-check{position:relative;flex:0 0 auto;width:22px;height:22px;cursor:pointer}
+.onb-check input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.onb-check span{display:block;width:22px;height:22px;border:1.5px solid var(--line);border-radius:50%;background:var(--tile)}
+.onb-check input:checked+span{background:var(--ink);border-color:var(--ink)}
+.onb-check input:checked+span::after{content:"";position:absolute;left:8px;top:4px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.onb-check input:focus-visible+span{outline:2px solid var(--ink);outline-offset:2px}
+.onb-foot{display:flex;justify-content:space-between;gap:10px;margin-top:28px;padding-top:18px;border-top:1px solid var(--line)}
+.onb-ask{padding-top:32px}
+.onb-spot{position:fixed;z-index:60;border-radius:12px;box-shadow:0 0 0 9999px rgba(20,20,20,.45);pointer-events:none;transition:all .25s}
+.onb-tour{position:fixed;z-index:61;background:var(--tile);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+.onb-tour h4{margin:2px 0 6px;font-size:17px;font-weight:500}
+.onb-tour p{margin:0 0 12px}
+.onb-tour .mini{margin:0}
+.onb-tour .row{display:flex;gap:8px;justify-content:flex-end}
+.onb-note{margin-top:14px!important;padding:12px 16px;border-radius:12px;background:var(--soft)}
