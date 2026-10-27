@@ -217,7 +217,7 @@
   function show(v) {
     VIEWS.forEach((x) => { const el = $("v-" + x); if (el) el.hidden = x !== v; });
     document.querySelectorAll(".tabs a").forEach((t) => t.setAttribute("aria-current", t.dataset.view === v ? "page" : "false"));
-    document.title = "Rumeur Office · " + (({ radar: "Radar Rumeur", assistant: "Assistant", lieux: "Sélections", admin: "Admin" }[v] || (v === "lieux" ? "Lieux" : "Workspace " + wsCodeFromHash())));
+    document.title = "Rumeur Office · " + (({ radar: "Radar", assistant: "Assistant", lieux: "Sélections", admin: "Admin" }[v] || (v === "lieux" ? "Lieux" : "Workspace " + wsCodeFromHash())));
     if (PRIVATE.has(v)) {
       if (!user) { renderGate(v); return; }
       if (v !== "assistant" && v !== "workspace" && v !== "radar") loadDash(false);
