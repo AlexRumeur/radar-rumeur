@@ -371,3 +371,78 @@ a.btn.primary{color:#fff}
 .msg .trace ol{margin:6px 0 2px;padding-left:18px}
 .msg .trace li{margin:2px 0}
 .msg .trace li span{opacity:.75}
+
+/* ───────── Lisibilité des réponses ───────── */
+.msg.bot.wide{max-width:100%;align-self:stretch}
+.msg.bot blockquote{margin:0 0 10px;padding:8px 12px;border-left:2px solid var(--ink);background:var(--soft);border-radius:0 10px 10px 0}
+.msg.bot blockquote.tldr{font-size:15.5px;border-left-color:var(--ink);background:var(--soft)}
+.msg.bot blockquote:last-child{margin-bottom:0}
+.msg.bot table{display:table;width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:.6em 0}
+.msg.bot thead th{background:var(--soft);font-weight:500;font-size:13px;color:var(--muted)}
+.msg.bot td,.msg.bot th{border:0;border-bottom:1px solid var(--line);padding:7px 10px;vertical-align:top}
+.msg.bot tbody tr:last-child td,.msg.bot tbody tr:last-child th{border-bottom:0}
+.msg.bot .anticip{margin:12px 0 2px;padding:10px 14px;border:1px solid color-mix(in srgb,var(--warn) 35%,var(--line));background:color-mix(in srgb,var(--warn) 7%,var(--tile));border-radius:12px}
+.msg.bot .anticip h3{font-size:13px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--warn);margin:0 0 4px;display:flex;align-items:center;gap:6px}
+.msg.bot .anticip h3::before{content:"!";display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--warn);color:#fff;font-size:11px;font-weight:700}
+.msg.bot .anticip ul{margin:0}
+.msg.bot a.fcard{display:inline-flex;align-items:center;gap:8px;max-width:100%;vertical-align:middle;margin:2px 0;padding:5px 10px 5px 6px;border:1px solid var(--line);border-radius:10px;background:var(--tile);color:var(--ink);text-decoration:none;font-size:14px;line-height:1.2;transition:border-color .15s}
+.msg.bot a.fcard:hover{border-color:var(--ink)}
+.fcard .fi{flex:none;display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:var(--soft);font-size:12px;font-weight:600}
+.fcard .fn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.fcard .fk{color:var(--muted);font-size:12px;white-space:nowrap}
+.fcard .fo{color:var(--muted);font-size:12px}
+.chats-q{width:100%;box-sizing:border-box;margin:10px 0 4px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--tile);font:400 13.5px var(--font);color:var(--ink)}
+.chats-g{margin:12px 0 2px 10px;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+
+/* ───────── Comparatif de devis ───────── */
+.dv{margin:4px 0 12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--bg)}
+.dv-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.dv-h b{display:block;font-weight:500;font-size:16px}
+.dv-h .mini{display:block;margin-top:2px}
+.dv-bars{display:flex;flex-direction:column;gap:6px}
+.dv-row{display:grid;grid-template-columns:minmax(120px,1.1fr) 2.2fr minmax(120px,auto);align-items:center;gap:12px;width:100%;padding:8px 10px;border:1px solid transparent;border-radius:10px;background:var(--tile);cursor:pointer;text-align:left;font:inherit;color:var(--ink);transition:border-color .15s}
+.dv-row:hover{border-color:var(--line)}
+.dv-row.on{border-color:var(--ink)}
+.dv-name{font-weight:500;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.dv-badge{font-size:11px;font-weight:500;padding:2px 7px;border-radius:99px;white-space:nowrap}
+.dv-badge.rec{background:var(--ink);color:#fff}
+.dv-badge.low{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.dv-track{height:12px;border-radius:4px;background:var(--soft);overflow:hidden}
+.dv-fill{display:block;height:100%;border-radius:0 4px 4px 0;background:#B9B9B3;transition:width .45s cubic-bezier(.2,.7,.2,1)}
+.dv-row.on .dv-fill{background:var(--ink)}
+.dv-amt{text-align:right;font-variant-numeric:tabular-nums}
+.dv-amt b{font-weight:500;display:block}
+.dv-amt small{color:var(--muted);font-size:12px}
+.dv-note{font-size:13px;color:var(--muted);margin:8px 2px 0}
+.dv-tw{overflow-x:auto;margin-top:12px}
+.msg.bot .dv-t{margin:0;font-size:13.5px;background:var(--tile)}
+.dv-t td{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dv-t th[scope=row]{font-weight:400}
+.dv-t th[scope=row] label{display:flex;align-items:center;gap:8px;cursor:pointer}
+.dv-t th[scope=row] small{display:block;color:var(--muted);font-size:12px;margin-left:24px}
+.dv-t input{accent-color:var(--ink)}
+.dv-t td.best{color:var(--ok);font-weight:500}
+.dv-t td.best::before{content:"✓ ";font-size:11px}
+.dv-t td.miss{color:var(--warn);font-size:12px;font-style:italic}
+.dv-t .sel{background:color-mix(in srgb,var(--ink) 5%,transparent)}
+.dv-t tr.off td,.dv-t tr.off th{color:var(--muted);text-decoration:line-through;opacity:.6}
+.dv-t tr.off td.best::before{content:""}
+.msg.bot .dv-t tfoot th,.msg.bot .dv-t tfoot td{border-top:1px solid var(--line);border-bottom:0;font-weight:500}
+.dv-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:12px}
+.dv-card{background:var(--tile);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13.5px}
+.dv-card.on{border-color:var(--ink)}
+.dv-card b{font-weight:500;display:block;margin-bottom:4px}
+.msg.bot .dv-card p{margin:2px 0}
+.dv-card .plus{color:var(--ok)}.dv-card .minus{color:var(--hot)}
+.dv-card .fcard{margin-top:6px!important;font-size:13px!important}
+.dv-rec{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--ink);color:#fff;font-size:14px}
+.msg.bot .dv-rec p{margin:4px 0 0;opacity:.85}
+.dv-check{margin-top:10px;font-size:13.5px}
+.dv-check b{font-weight:500}
+.dv-check ul{margin:4px 0 0}
+@media (max-width:640px){.dv-row{grid-template-columns:1fr auto}.dv-track{grid-column:1 / -1;grid-row:2}.dv-h{flex-direction:column}}
+.msg.bot .dv-t{overflow-wrap:normal;word-break:normal;min-width:460px}
+.dv-t th[scope=row]{min-width:150px;position:sticky;left:0;background:var(--tile);z-index:1}
+.dv-t thead th:first-child,.dv-t tfoot th{position:sticky;left:0;z-index:1}
+.dv-t thead th:first-child{background:var(--soft)}.dv-t tfoot th{background:var(--tile)}
+.dv-card .fcard .fk{display:none}

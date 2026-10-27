@@ -78,6 +78,24 @@
     if (action === "chat_get") { const c = DEMO_CHATS.find(x => x.id === payload.id); return { chat: c }; }
     if (action === "chat_save") { let c = DEMO_CHATS.find(x => x.id === payload.id); if (!c) { c = { id: "d" + Date.now(), titre: String((payload.messages.find(m => m.role === "user") || {}).content || "Conversation").slice(0, 70) }; DEMO_CHATS.unshift(c); } c.messages = payload.messages; c.maj = Date.now(); return { result: { id: c.id, titre: c.titre } }; }
     if (action === "chat_delete") { const i = DEMO_CHATS.findIndex(x => x.id === payload.id); if (i >= 0) DEMO_CHATS.splice(i, 1); return { result: { ok: true } }; }
+    if (action === "chat" && /devis/i.test((payload.messages || []).slice(-1)[0].content || "")) return {
+      reply: "> **L'essentiel :** Studio Lumen est le plus complet pour 9 % de plus qu'Electroprod, qui ne chiffre ni le groupe électrogène ni le transport.\n\nÀ prestation égale (en ajoutant ~1 400 € de groupe et de camion chez Electroprod), **Studio Lumen revient moins cher** et inclut un chef électro déjà calé sur BODY.\n\nDevis lus : [Devis Studio Lumen v2](https://drive.google.com/file/d/demo1/view) · [Devis Electroprod v3](https://drive.google.com/file/d/demo2/view) · [Devis Paris Light](https://drive.google.com/file/d/demo3/view)\n\n### À anticiper\n- **Heures sup** : les 3 devis comptent des journées de 10 h ; le plan de travail BODY prévoit 12 h le jour 2 → demander le tarif horaire au-delà.\n- **Validité** : le devis Lumen expire le 6 novembre, avant la validation client prévue le 10 → demander une prolongation.\n- **Assurance matériel** : non mentionnée chez Paris Light.\n\nJe prépare le mail à Studio Lumen pour les heures sup et la prolongation ?",
+      actions: [{ outil: "chercher_drive", ok: true }, { outil: "lire_fichier", ok: true }, { outil: "afficher_comparatif_devis", ok: true }], memo: "",
+      widgets: [{ type: "devis", data: { titre: "Devis lumière — BODY", base: "HT", devise: "€",
+        fournisseurs: [
+          { nom: "Studio Lumen", total: 14200, lien: "https://drive.google.com/file/d/demo1/view", validite: "Valable jusqu'au 06/11 · 30 % d'acompte", forts: ["Chef électro qui connaît le lieu", "Groupe électrogène et camion inclus"], faibles: ["Validité courte"] },
+          { nom: "Electroprod", total: 13020, lien: "https://drive.google.com/file/d/demo2/view", validite: "Valable 30 jours", forts: ["Le moins cher sur le matériel"], faibles: ["Groupe et transport non chiffrés", "Équipe plus junior"] },
+          { nom: "Paris Light", total: 16850, lien: "https://drive.google.com/file/d/demo3/view", validite: "Valable 15 jours", forts: ["Parc HMI le plus large"], faibles: ["Le plus cher", "Assurance non mentionnée"] }],
+        postes: [
+          { nom: "Équipe électro (2 j)", montants: [4800, 4200, 5600] },
+          { nom: "Matériel lumière", montants: [6100, 5900, 7900], note: "HMI 18K, Skypanels, machinerie" },
+          { nom: "Groupe électrogène", montants: [1300, null, 1450] },
+          { nom: "Transport / camion", montants: [700, null, 900] },
+          { nom: "Consommables", montants: [500, 620, 400] },
+          { nom: "Prépa et démontage", montants: [800, 2300, 600] }],
+        recommandation: { fournisseur: "Studio Lumen", pourquoi: "Seul devis complet ; une fois le groupe et le camion ajoutés à Electroprod, il revient moins cher." },
+        a_verifier: ["Tarif des heures sup au-delà de 10 h", "Prolongation de validité jusqu'au 10/11", "Assurance du matériel loué"] } }],
+    };
     if (action === "chat") return {
       reply: "**Mode démo** — l'assistant n'est pas encore branché.\n\nUne fois activé, il pourra par exemple :\n- transformer vos notes de call en **fiche brief** (résumé, recommandations, warnings) puis créer le dossier projet dans le Drive ;\n- ranger un devis, une DA ou un retour client dans le bon projet ;\n- préparer un **NDA** ou un contrat freelance prêt pour Yousign ;\n- signaler ce qui manque au bureau et préparer la commande.",
       actions: [], memo: "",
@@ -199,7 +217,7 @@
   function show(v) {
     VIEWS.forEach((x) => { const el = $("v-" + x); if (el) el.hidden = x !== v; });
     document.querySelectorAll(".tabs a").forEach((t) => t.setAttribute("aria-current", t.dataset.view === v ? "page" : "false"));
-    document.title = "Rumeur Office · " + (({ radar: "Radar", assistant: "Assistant", lieux: "Sélections", admin: "Admin" }[v] || (v === "lieux" ? "Lieux" : "Workspace " + wsCodeFromHash())));
+    document.title = "Rumeur Office · " + (({ radar: "Radar Rumeur", assistant: "Assistant", lieux: "Sélections", admin: "Admin" }[v] || (v === "lieux" ? "Lieux" : "Workspace " + wsCodeFromHash())));
     if (PRIVATE.has(v)) {
       if (!user) { renderGate(v); return; }
       if (v !== "assistant" && v !== "workspace" && v !== "radar") loadDash(false);
@@ -372,7 +390,7 @@
   }
 
   // ───────── Assistant ─────────
-  const TOOL_LABELS = { tableau_de_bord: "Vue d'ensemble", lire_feuille: "Lecture registre", ajouter_ligne: "Ligne ajoutée", modifier_lignes: "Registre mis à jour", creer_projet: "Projet créé", mettre_a_jour_projet: "Projet mis à jour", creer_document_projet: "Document créé", ranger_fichier: "Fichier rangé", lister_dossier: "Dossier parcouru", chercher_drive: "Recherche Drive", lire_fichier: "Fichier lu", preparer_nda_ou_contrat: "Document juridique préparé", chercher_gmail: "Recherche Gmail", lire_fil_gmail: "Mail lu", enregistrer_piece_jointe: "Pièce jointe enregistrée", creer_brouillon: "Brouillon créé", envoyer_mail_interne: "Mail interne envoyé", signaler_achat: "Achats mis à jour", noter_idee: "Idée notée", chercher_connaissances: "Recherche dans le Cerveau", retenir: "Ajouté à la mémoire", guide_presentation: "Modèle Rumeur", voir_images: "Photos regardées", creer_presentation: "Présentation créée", creer_selection_lieux: "Sélection de lieux créée" };
+  const TOOL_LABELS = { tableau_de_bord: "Vue d'ensemble", lire_feuille: "Lecture registre", ajouter_ligne: "Ligne ajoutée", modifier_lignes: "Registre mis à jour", creer_projet: "Projet créé", mettre_a_jour_projet: "Projet mis à jour", creer_document_projet: "Document créé", ranger_fichier: "Fichier rangé", lister_dossier: "Dossier parcouru", chercher_drive: "Recherche Drive", lire_fichier: "Fichier lu", preparer_nda_ou_contrat: "Document juridique préparé", chercher_gmail: "Recherche Gmail", lire_fil_gmail: "Mail lu", enregistrer_piece_jointe: "Pièce jointe enregistrée", creer_brouillon: "Brouillon créé", envoyer_mail_interne: "Mail interne envoyé", signaler_achat: "Achats mis à jour", noter_idee: "Idée notée", chercher_connaissances: "Recherche dans le Cerveau", retenir: "Ajouté à la mémoire", guide_presentation: "Modèle Rumeur", voir_images: "Photos regardées", creer_presentation: "Présentation créée", creer_selection_lieux: "Sélection client créée", afficher_comparatif_devis: "Comparatif de devis" };
   const SUGG = [
     ["Créer une prez", "Crée une présentation dans le modèle Rumeur (locations / moodboard / casting / storyboard). Client : … Campagne : … Je joins les photos."],
     ["Comparer des devis", "Compare ces devis (je les joins) : prix HT et TTC, ce qui est inclus ou non, écarts entre eux, points à négocier, et ta recommandation. Projet : "],
@@ -385,21 +403,42 @@
   ];
 
   // Markdown minimal et sûr : tout est échappé avant mise en forme ; liens http(s) uniquement.
+  // Liens Drive, Gmail, sélections… affichés en cartes cliquables.
+  function linkKind(u) {
+    if (/docs\.google\.com\/document/.test(u)) return ["D", "Google Doc"];
+    if (/docs\.google\.com\/spreadsheets/.test(u)) return ["S", "Google Sheet"];
+    if (/docs\.google\.com\/presentation/.test(u)) return ["P", "Présentation"];
+    if (/drive\.google\.com\/drive\/(u\/\d+\/)?folders/.test(u)) return ["▤", "Dossier Drive"];
+    if (/drive\.google\.com|docs\.google\.com|googleusercontent/.test(u)) return ["F", "Fichier Drive"];
+    if (/mail\.google\.com/.test(u)) return ["@", "Gmail"];
+    if (/#sel-|lieux\.html/.test(u)) return ["★", /lieux\.html/.test(u) ? "Lien client" : "Sélection"];
+    if (/#ws-/.test(u)) return ["W", "Workspace"];
+    return null;
+  }
+  function linkHTML(label, u) {
+    const k = linkKind(u);
+    if (!k) return `<a href="${u}" target="_blank" rel="noopener">${label || (u.length > 60 ? u.slice(0, 57) + "…" : u)}</a>`;
+    return `<a class="fcard" href="${u}" target="_blank" rel="noopener"><span class="fi" aria-hidden="true">${k[0]}</span><span class="fn">${label || k[1]}</span>${label ? `<span class="fk">${k[1]}</span>` : ""}<span class="fo" aria-hidden="true">↗</span></a>`;
+  }
   function inline(s) {
     let t = esc(s);
     const links = [];
-    t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, l, u) => { links.push(`<a href="${u}" target="_blank" rel="noopener">${l}</a>`); return "\u0000" + (links.length - 1) + "\u0000"; });
-    t = t.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_, p, u) => { links.push(`<a href="${u}" target="_blank" rel="noopener">${u.length > 60 ? u.slice(0, 57) + "…" : u}</a>`); return p + "\u0000" + (links.length - 1) + "\u0000"; });
+    t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, l, u) => { links.push(linkHTML(l, u)); return "\u0000" + (links.length - 1) + "\u0000"; });
+    t = t.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_, p, u) => { links.push(linkHTML("", u)); return p + "\u0000" + (links.length - 1) + "\u0000"; });
     t = t.replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>");
     return t.replace(/\u0000(\d+)\u0000/g, (_, i) => links[+i]);
   }
   function md(text) {
     const lines = String(text || "").replace(/<actions>[\s\S]*?<\/actions>/g, "").trim().split(/\r?\n/);
-    const out = []; let list = null, para = [];
+    const out = []; let list = null, para = [], quote = [], anticip = false;
+    const flushQuote = () => { if (quote.length) { const h = quote.map(inline).join("<br>"); out.push(`<blockquote class="${/essentiel|tl;dr|en bref/i.test(quote[0]) ? "tldr" : ""}">${h}</blockquote>`); quote = []; } };
     const flushPara = () => { if (para.length) { out.push("<p>" + para.map(inline).join("<br>") + "</p>"); para = []; } };
     const flushList = () => { if (list) { out.push(`<${list.tag}>` + list.items.map((x) => "<li>" + x + "</li>").join("") + `</${list.tag}>`); list = null; } };
     for (let i = 0; i < lines.length; i++) {
       const l = lines[i];
+      const q = l.match(/^\s*>\s?(.*)/);
+      if (q) { flushPara(); flushList(); quote.push(q[1]); continue; }
+      flushQuote();
       if (/^\s*\|.*\|\s*$/.test(l) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
         flushPara(); flushList();
         const cells = (r) => r.trim().replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim()));
@@ -409,15 +448,93 @@
         i--; out.push(html + "</tbody></table>"); continue;
       }
       let m;
-      if ((m = l.match(/^(#{1,4})\s+(.*)/))) { flushPara(); flushList(); out.push(`<h3>${inline(m[2])}</h3>`); continue; }
+      if ((m = l.match(/^(#{1,4})\s+(.*)/))) {
+        flushPara(); flushList();
+        if (anticip) { out.push("</div>"); anticip = false; }
+        if (/anticiper|à prévoir|points? d'attention|warnings?/i.test(m[2])) { anticip = true; out.push(`<div class="anticip"><h3>${inline(m[2].replace(/^[⚠️\s]+/, ""))}</h3>`); }
+        else out.push(`<h3>${inline(m[2])}</h3>`);
+        continue;
+      }
       if ((m = l.match(/^\s*[-*•]\s+(?:\[( |x)\]\s+)?(.*)/i))) { flushPara(); if (!list || list.tag !== "ul") { flushList(); list = { tag: "ul", items: [] }; } list.items.push((m[1] ? (m[1].toLowerCase() === "x" ? "☑ " : "☐ ") : "") + inline(m[2])); continue; }
       if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))) { flushPara(); if (!list || list.tag !== "ol") { flushList(); list = { tag: "ol", items: [] }; } list.items.push(inline(m[1])); continue; }
       if (/^\s*(---|\*\*\*)\s*$/.test(l)) { flushPara(); flushList(); out.push("<hr>"); continue; }
       if (!l.trim()) { flushPara(); flushList(); continue; }
+      if (anticip && out[out.length - 1] && /<\/(ul|ol)>$/.test(out[out.length - 1]) && !para.length) { out.push("</div>"); anticip = false; }
       flushList(); para.push(l);
     }
-    flushPara(); flushList();
+    flushQuote(); flushPara(); flushList();
+    if (anticip) out.push("</div>");
     return out.join("");
+  }
+
+
+  // ───────── Comparatif de devis interactif (outil afficher_comparatif_devis) ─────────
+  const dvState = {};
+  const eur = (n, cur) => n == null || isNaN(n) ? "—" : Math.round(n).toLocaleString("fr-FR").replace(/ | /g, " ") + " " + (cur || "€");
+  function dvCalc(d, st) {
+    const F = d.fournisseurs || [], P = d.postes || [];
+    return F.map((f, k) => {
+      const sumAll = P.reduce((a, p) => a + (Number((p.montants || [])[k]) || 0), 0);
+      const base = typeof f.total === "number" ? f.total : sumAll;
+      const off = P.reduce((a, p, j) => a + (st.off[j] ? (Number((p.montants || [])[k]) || 0) : 0), 0);
+      const miss = P.filter((p, j) => !st.off[j] && (p.montants || [])[k] == null).length;
+      return { nom: f.nom, total: base - off, miss };
+    });
+  }
+  function dvHTML(key, d) {
+    const st = dvState[key] || (dvState[key] = { off: {}, sel: d.recommandation && d.recommandation.fournisseur || "" });
+    const F = d.fournisseurs || [], P = d.postes || [], cur = d.devise || "€", base = d.base || "HT";
+    const tot = dvCalc(d, st), vals = tot.map((t) => t.total), min = Math.min(...vals), max = Math.max(...vals, 1);
+    const rec = d.recommandation && d.recommandation.fournisseur;
+    const anyOff = Object.values(st.off).some(Boolean);
+    const bars = tot.map((t, k) => {
+      const pct = Math.max(2, (t.total / max) * 100), gap = min > 0 ? Math.round(((t.total - min) / min) * 100) : 0;
+      const on = st.sel === t.nom;
+      return `<button type="button" class="dv-row${on ? " on" : ""}" data-dv-sel="${esc(t.nom)}" aria-pressed="${on}">
+        <span class="dv-name">${esc(t.nom)}${t.nom === rec ? `<span class="dv-badge rec">Recommandé</span>` : ""}${t.total === min && F.length > 1 ? `<span class="dv-badge low">✓ Moins cher</span>` : ""}</span>
+        <span class="dv-track"><span class="dv-fill" style="width:${pct}%"></span></span>
+        <span class="dv-amt"><b>${eur(t.total, cur)}</b><small>${t.total === min ? "référence" : "+" + gap + " %"}${t.miss ? ` · ${t.miss} poste${t.miss > 1 ? "s" : ""} non chiffré${t.miss > 1 ? "s" : ""}` : ""}</small></span></button>`;
+    }).join("");
+    const rows = P.map((p, j) => {
+      const ms = (p.montants || []).map((x) => x == null ? null : Number(x));
+      const nums = ms.filter((x) => x != null && !isNaN(x)), lo = nums.length > 1 ? Math.min(...nums) : null;
+      return `<tr class="${st.off[j] ? "off" : ""}"><th scope="row"><label><input type="checkbox" data-dv-off="${j}" ${st.off[j] ? "" : "checked"}> ${esc(p.nom)}</label>${p.note ? `<small>${esc(p.note)}</small>` : ""}</th>${F.map((f, k) => {
+        const v = ms[k];
+        return `<td class="${v == null ? "miss" : v === lo ? "best" : ""}${st.sel === f.nom ? " sel" : ""}">${v == null ? "non chiffré" : eur(v, cur)}</td>`;
+      }).join("")}</tr>`;
+    }).join("");
+    const cards = F.some((f) => (f.forts || []).length || (f.faibles || []).length || f.validite || f.lien) ? `<div class="dv-cards">${F.map((f) => `<div class="dv-card${st.sel === f.nom ? " on" : ""}"><b>${esc(f.nom)}</b>
+      ${(f.forts || []).map((x) => `<p class="plus">+ ${esc(x)}</p>`).join("")}${(f.faibles || []).map((x) => `<p class="minus">− ${esc(x)}</p>`).join("")}
+      ${f.validite ? `<p class="mini">${esc(f.validite)}</p>` : ""}${f.lien ? linkHTML("Ouvrir le devis", esc(f.lien)) : ""}</div>`).join("")}</div>` : "";
+    return `<div class="dv-h"><div><b>${esc(d.titre || "Comparatif des devis")}</b><span class="mini">Montants ${esc(base)} · cliquez un prestataire pour le suivre dans le tableau · décochez un poste pour le retirer</span></div>
+        <button type="button" class="btn small ghost" data-dv-copy="1">Copier pour Sheets</button></div>
+      <div class="dv-bars" role="group" aria-label="Totaux par prestataire">${bars}</div>
+      ${anyOff ? `<p class="dv-note">Totaux recalculés sans les postes décochés. <button type="button" class="linkbtn" data-dv-reset="1">Tout remettre</button></p>` : ""}
+      ${P.length ? `<div class="dv-tw"><table class="dv-t"><thead><tr><th>Poste</th>${F.map((f) => `<th class="${st.sel === f.nom ? "sel" : ""}">${esc(f.nom)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody>
+        <tfoot><tr><th>Total ${esc(base)}</th>${tot.map((t) => `<td class="${t.total === min ? "best" : ""}${st.sel === t.nom ? " sel" : ""}">${eur(t.total, cur)}</td>`).join("")}</tr></tfoot></table></div>` : ""}
+      ${cards}
+      ${d.recommandation && d.recommandation.fournisseur ? `<div class="dv-rec"><b>Recommandation : ${esc(d.recommandation.fournisseur)}</b>${d.recommandation.pourquoi ? `<p>${esc(d.recommandation.pourquoi)}</p>` : ""}</div>` : ""}
+      ${(d.a_verifier || []).length ? `<div class="dv-check"><b>À vérifier avant de signer</b><ul>${d.a_verifier.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}`;
+  }
+  function widgetsHTML(m, mi) {
+    return (m.widgets || []).map((w, wi) => w.type === "devis" && w.data ? `<div class="dv" data-dv="${mi}-${wi}">${dvHTML(mi + "-" + wi, w.data)}</div>` : "").join("");
+  }
+  function dvClick(e) {
+    const box = e.target.closest(".dv"); if (!box) return false;
+    const key = box.dataset.dv, [mi, wi] = key.split("-").map(Number), w = history[mi] && history[mi].widgets && history[mi].widgets[wi]; if (!w) return false;
+    const st = dvState[key] || (dvState[key] = { off: {}, sel: "" }), d = w.data;
+    const t = (sel) => e.target.closest(sel);
+    if (t("[data-dv-sel]")) { const n = t("[data-dv-sel]").dataset.dvSel; st.sel = st.sel === n ? "" : n; }
+    else if (t("[data-dv-off]")) { const j = +t("[data-dv-off]").dataset.dvOff; st.off[j] = !t("[data-dv-off]").checked; }
+    else if (t("[data-dv-reset]")) st.off = {};
+    else if (t("[data-dv-copy]")) {
+      const F = d.fournisseurs || [], tot = dvCalc(d, st);
+      const tsv = [["Poste"].concat(F.map((f) => f.nom))].concat((d.postes || []).filter((p, j) => !st.off[j]).map((p) => [p.nom].concat(F.map((f, k) => p.montants[k] == null ? "" : String(p.montants[k]).replace(".", ","))))).concat([["Total " + (d.base || "HT")].concat(tot.map((x) => String(Math.round(x.total))))]).map((r) => r.join("\t")).join("\n");
+      navigator.clipboard.writeText(tsv).then(() => toast("Copié : collez dans Google Sheets"), () => toast("Copie impossible"));
+      return true;
+    } else return false;
+    const y = window.scrollY; box.innerHTML = dvHTML(key, d); window.scrollTo(0, y);
+    return true;
   }
 
   function renderAssistant() {
@@ -466,14 +583,33 @@
     if (d < 86400 * 7) return Math.round(d / 86400) + " j";
     return new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   }
+  // Historique : recherche dans les titres et regroupement par date.
+  let chatQ = "";
+  const fold = (x) => String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  function chatGroup(t) {
+    const d0 = new Date(); d0.setHours(0, 0, 0, 0); const day = 864e5, x = Number(t) || 0;
+    if (x >= d0.getTime()) return "Aujourd'hui";
+    if (x >= d0.getTime() - day) return "Hier";
+    if (x >= d0.getTime() - 6 * day) return "Cette semaine";
+    if (x >= d0.getTime() - 30 * day) return "Ce mois-ci";
+    return "Plus ancien";
+  }
   function renderChats() {
     const a = $("chats"); if (!a) return;
     a.classList.toggle("open", chatsOpen);
-    const list = chats || [];
-    a.innerHTML = `<div class="chats-h"><b>Historique</b><button type="button" class="btn small primary" data-chat-new="1">+ Nouvelle</button><button type="button" class="iconbtn chats-x" data-chat-close="1" aria-label="Fermer">×</button></div>
-      ${chatsLoading && !list.length ? `<p class="mini">Chargement…</p>` : ""}
-      ${!chatsLoading && !list.length ? `<p class="mini">Vos conversations apparaîtront ici. Elles sont enregistrées dans le Drive et visibles seulement par vous.</p>` : ""}
-      <ul>${list.map(c => `<li class="${c.id === chatId ? "on" : ""}"><button type="button" class="chat-it" data-chat-open="${esc(c.id)}"><span>${esc(c.titre)}</span><small>${esc(ago(c.maj))}</small></button>${delAsk === c.id ? `<button type="button" class="chat-del sure" data-chat-del="${esc(c.id)}">Supprimer</button>` : `<button type="button" class="chat-del" data-chat-ask="${esc(c.id)}" aria-label="Supprimer la conversation">×</button>`}</li>`).join("")}</ul>`;
+    if (!a.querySelector(".chats-list")) {
+      a.innerHTML = `<div class="chats-h"><b>Historique</b><button type="button" class="btn small primary" data-chat-new="1">+ Nouvelle</button><button type="button" class="iconbtn chats-x" data-chat-close="1" aria-label="Fermer">×</button></div>
+        <input type="search" class="chats-q" placeholder="Rechercher une conversation" aria-label="Rechercher une conversation"><div class="chats-list"></div>`;
+      const q = a.querySelector(".chats-q"); q.value = chatQ;
+      q.addEventListener("input", () => { chatQ = q.value; renderChats(); });
+    }
+    const all = chats || [], list = all.filter((c) => !chatQ.trim() || fold(c.titre).includes(fold(chatQ.trim())));
+    const groups = []; list.forEach((c) => { const g = chatGroup(c.maj); let G = groups.find((x) => x.g === g); if (!G) groups.push(G = { g, items: [] }); G.items.push(c); });
+    const item = (c) => `<li class="${c.id === chatId ? "on" : ""}"><button type="button" class="chat-it" data-chat-open="${esc(c.id)}"><span>${esc(c.titre)}</span><small>${esc(ago(c.maj))}</small></button>${delAsk === c.id ? `<button type="button" class="chat-del sure" data-chat-del="${esc(c.id)}">Supprimer</button>` : `<button type="button" class="chat-del" data-chat-ask="${esc(c.id)}" aria-label="Supprimer la conversation">×</button>`}</li>`;
+    a.querySelector(".chats-list").innerHTML = `${chatsLoading && !all.length ? `<p class="mini">Chargement…</p>` : ""}
+      ${!chatsLoading && !all.length ? `<p class="mini">Vos conversations apparaîtront ici. Elles sont enregistrées dans le Drive et visibles seulement par vous.</p>` : ""}
+      ${all.length && !list.length ? `<p class="mini">Aucune conversation ne correspond.</p>` : ""}
+      ${groups.map((G) => `<p class="chats-g">${G.g}</p><ul>${G.items.map(item).join("")}</ul>`).join("")}`;
   }
   async function persistChat() {
     const keep = history.filter((m) => !m.error);
@@ -513,10 +649,14 @@
         <div class="sugg">${SUGG.map(([l, p]) => `<button type="button" class="chip" data-ask="${esc(p)}" data-noauto="1">${esc(l)}</button>`).join("")}</div></div>`;
       return;
     }
-    box.innerHTML = history.map((m) => {
+    box.innerHTML = history.map((m, mi) => {
       if (m.role === "user") return `<div class="msg me">${esc(m.display || m.content)}${m.files && m.files.length ? `<div class="files">📎 ${m.files.map(esc).join(", ")}</div>` : ""}</div>`;
       const tr = m.trace && m.trace.steps && m.trace.steps.length > 1 ? m.trace : null;
-      if (tr) return `<div class="msg bot${m.error ? " err" : ""}"><details class="trace"><summary>${tr.n} étapes · ${Math.floor(tr.ms / 60000)}:${String(Math.round(tr.ms / 1000) % 60).padStart(2, "0")}</summary><ol>${tr.steps.map((x) => `<li>${esc(x.t)}${x.d ? ` <span>${esc(x.d)}</span>` : ""}</li>`).join("")}</ol></details>${md(m.content)}</div>`;
+      if (tr || (m.widgets && m.widgets.length)) {
+        let body = md(m.content); const wh = widgetsHTML(m, mi);
+        if (wh) { const k = body.startsWith("<blockquote") ? body.indexOf("</blockquote>") + 13 : 0; body = body.slice(0, k) + wh + body.slice(k); }
+        return `<div class="msg bot${wh ? " wide" : ""}${m.error ? " err" : ""}">${tr ? `<details class="trace"><summary>${tr.n} étapes · ${Math.floor(tr.ms / 60000)}:${String(Math.round(tr.ms / 1000) % 60).padStart(2, "0")}</summary><ol>${tr.steps.map((x) => `<li>${esc(x.t)}${x.d ? ` <span>${esc(x.d)}</span>` : ""}</li>`).join("")}</ol></details>` : ""}${body}</div>`;
+      }
       return `<div class="msg bot${m.error ? " err" : ""}">${md(m.content)}${m.actions && m.actions.length ? `<div class="acts">${m.actions.map((a) => `<span class="tag ${a.ok ? "ok" : "hot"}">${a.ok ? "✓" : "✗"} ${esc(TOOL_LABELS[a.outil] || a.outil)}</span>`).join("")}</div>` : ""}</div>`;
     }).join("") + (typing ? `<div class="runbox" id="runbox"></div>` : "");
     if (typing && run) run.mount($("runbox"));
@@ -620,7 +760,7 @@
         const out = await track("chat", { messages: msgs, attachments: att }, run);
         run.stop();
         if (out.lastUserText) history[history.length - 1].content = out.lastUserText, history[history.length - 1].display = content;
-        history.push({ role: "assistant", content: out.reply + (out.memo || ""), actions: out.actions || [], trace: run.summary() });
+        history.push({ role: "assistant", content: out.reply + (out.memo || ""), actions: out.actions || [], widgets: out.widgets || [], trace: run.summary() });
         if ((out.actions || []).some((a) => a.ok && !/^(lire|chercher|lister|tableau)/.test(a.outil))) dash = null;
       } catch (err) {
         history.push({ role: "assistant", content: "Je n'ai pas pu répondre : " + err.message, error: true });
@@ -645,6 +785,7 @@
 
   // ───────── Événements globaux ─────────
   document.addEventListener("click", async (e) => {
+    if (dvClick(e)) return;
     const a = e.target.closest("[data-ask]");
     if (a) { e.preventDefault(); ask(a.dataset.ask, !a.dataset.noauto); return; }
     if (e.target.closest("[data-refresh]")) { dash = null; loadDash(true); renderView(current()); return; }

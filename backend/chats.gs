@@ -38,7 +38,7 @@ function chatGet(user, id) {
 
 function chatSave(user, p) {
   const msgs = (Array.isArray(p.messages) ? p.messages : []).filter(m => m && (m.role === 'user' || m.role === 'assistant')).slice(-200)
-    .map(m => ({ role: m.role, content: String(m.content || '').slice(0, 60000), display: m.display ? String(m.display).slice(0, 60000) : undefined, files: Array.isArray(m.files) ? m.files.slice(0, 20).map(String) : undefined, actions: Array.isArray(m.actions) ? m.actions.slice(0, 30) : undefined, error: m.error ? true : undefined }));
+    .map(m => ({ role: m.role, content: String(m.content || '').slice(0, 60000), display: m.display ? String(m.display).slice(0, 60000) : undefined, files: Array.isArray(m.files) ? m.files.slice(0, 20).map(String) : undefined, actions: Array.isArray(m.actions) ? m.actions.slice(0, 30) : undefined, widgets: Array.isArray(m.widgets) && JSON.stringify(m.widgets).length < 60000 ? m.widgets.slice(0, 4) : undefined, trace: m.trace && JSON.stringify(m.trace).length < 8000 ? m.trace : undefined, error: m.error ? true : undefined }));
   if (!msgs.length) return { id: null };
   const first = msgs.find(m => m.role === 'user');
   const titre = String(p.titre || (first && (first.display || first.content)) || 'Conversation').replace(/\s+/g, ' ').trim().slice(0, 70);

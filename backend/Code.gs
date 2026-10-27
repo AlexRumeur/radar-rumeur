@@ -724,6 +724,12 @@ const TOOLS = [
   { name: 'guide_presentation', description: "Renvoie le guide du modèle de présentation Rumeur (45 diapositives : usages, cadres photo, clés de texte, format de la spec). À lire AVANT de préparer une présentation.", input_schema: { type: 'object', properties: {} } },
   { name: 'voir_images', description: "Affiche jusqu'à 16 images du Drive (vignettes) pour les regarder avant de les placer : décrire, choisir, paysage/portrait.", input_schema: { type: 'object', properties: { file_ids: { type: 'array', items: { type: 'string' } } }, required: ['file_ids'] } },
   { name: 'creer_presentation', description: "Construit un .pptx dans le modèle Rumeur (s'ouvre dans Keynote) à partir d'une spec (voir guide_presentation). images = file_id Drive. code = projet (enregistré dans 2.DA & PROPOSITIONS), sinon dossier 07 · PRÉSENTATIONS.", input_schema: { type: 'object', properties: { titre: { type: 'string' }, code: { type: 'string' }, campaign: { type: 'array', items: { type: 'string' } }, brand: { type: 'string' }, slides: { type: 'array', items: { type: 'object' } }, remplace_file_id: { type: 'string', description: 'file_id d’une version précédente à mettre à la corbeille' } }, required: ['titre', 'brand', 'slides'] } },
+  { name: 'afficher_comparatif_devis', description: "Affiche dans le chat un comparatif graphique et interactif de devis (2 à 6 prestataires) : barres des totaux, tableau poste par poste avec le moins cher en évidence, postes à exclure d'un clic, points forts/faibles, recommandation. À utiliser dès qu'on compare des devis chiffrés : lis d'abord chaque devis (pièces jointes, Drive, workspace), puis appelle cet outil avec les montants exacts relevés. N'invente aucun montant.", input_schema: { type: 'object', properties: {
+    titre: { type: 'string', description: 'Ex. Devis lumière — BODY' }, devise: { type: 'string', description: '€ par défaut' }, base: { type: 'string', enum: ['HT', 'TTC'], description: 'HT par défaut ; tous les montants dans la même base' },
+    fournisseurs: { type: 'array', items: { type: 'object', properties: { nom: { type: 'string' }, total: { type: 'number', description: 'Total du devis tel qu’écrit (même base)' }, lien: { type: 'string', description: 'Lien Drive du devis si connu' }, validite: { type: 'string', description: 'Date de validité / conditions de paiement si indiquées' }, forts: { type: 'array', items: { type: 'string' } }, faibles: { type: 'array', items: { type: 'string' } } }, required: ['nom'] } },
+    postes: { type: 'array', description: 'Postes harmonisés entre les devis (regroupe les lignes équivalentes : équipe, matériel, transport, régie, post-prod, frais…)', items: { type: 'object', properties: { nom: { type: 'string' }, montants: { type: 'array', items: { type: ['number', 'null'] }, description: 'Un montant par fournisseur, dans le même ordre ; null si le poste n’est pas chiffré dans ce devis' }, note: { type: 'string' } }, required: ['nom', 'montants'] } },
+    recommandation: { type: 'object', properties: { fournisseur: { type: 'string' }, pourquoi: { type: 'string' } } },
+    a_verifier: { type: 'array', items: { type: 'string' }, description: 'Ce qu’un directeur de production vérifie avant de signer (postes manquants, options, heures sup, assurances, validité…)' } }, required: ['fournisseurs', 'postes'] } },
   { name: 'creer_selection_lieux', description: "Crée une sélection client à partager (page web type ScoutCloud : photos, noms, prix, liens, ♥ et commentaires du client) de type lieux (repérages), casting (talents) ou moodboard (DA / inspirations) à partir des pièces jointes (présentation PDF/PPTX, photos extraites, textes) et/ou d'un texte. Renvoie le lien d'édition : la personne vérifie puis publie le lien client.", input_schema: { type: 'object', properties: { type: { type: 'string', enum: ['lieux', 'casting', 'moodboard'], description: 'lieux par défaut ; casting pour des talents ; moodboard pour une DA / des références' }, titre: { type: 'string' }, client: { type: 'string' }, code: { type: 'string', description: 'Code projet si connu' }, intro: { type: 'string' }, fichiers: { type: 'array', items: { type: 'string' }, description: 'Laisser vide pour utiliser toutes les pièces jointes du message (présentation, photos extraites, textes). Sinon, file_id précis.' }, texte: { type: 'string', description: 'Texte collé décrivant des lieux (mail d’agence, liste), si pas de fichier' } } } },
   { name: 'lire_workspace', description: "Lit le workspace d'un projet (lieux, casting, prestataires, devis, planning… avec prix, statuts, points forts et vigilance). À utiliser pour comparer, résumer ou répondre à une question sur un projet.", input_schema: { type: 'object', properties: { code: { type: 'string' } }, required: ['code'] } },
   { name: 'noter_idee', description: 'Ajoute une idée de skill / amélioration / bug à la boîte à idées.', input_schema: { type: 'object', properties: { description: { type: 'string' }, pole: { type: 'string' } }, required: ['description'] } },
@@ -762,6 +768,7 @@ function runTool(name, input, user) {
     case 'voir_images': return viewImages(i.file_ids);
     case 'creer_presentation': return createDeck(i, user);
     case 'creer_selection_lieux': return selFromChat(i, user);
+    case 'afficher_comparatif_devis': return { affiche: true, note: 'Le comparatif interactif est affiché au-dessus de ta réponse : ne recopie pas le tableau, donne l’analyse.' };
     default: throw new Error('Outil inconnu : ' + name);
   }
 }
@@ -772,6 +779,21 @@ function systemPrompt(user) {
     "Tu es l'assistant interne de Rumeur, agence de production créative à Paris (photo, film, contenus pour le luxe, la mode et la beauté).",
     "Tu parles avec " + user.name + ' <' + user.email + '>. Nous sommes le ' + now + ' (Europe/Paris).',
     "Réponds dans la langue de la personne (français, espagnol ou anglais), court et concret. Les fichiers et dossiers restent en français.",
+    '',
+    '## Lisibilité des réponses',
+    "- Dès qu'une réponse fait plus de 3 lignes, commence par une seule ligne « > **L'essentiel :** … » : la conclusion ou la décision à prendre, en une phrase. Le détail vient après.",
+    "- Comparer des éléments (devis, lieux, talents, options, plannings) : un tableau markdown plutôt que des paragraphes. Pour des devis chiffrés, appelle afficher_comparatif_devis (graphique interactif) puis donne l'analyse sans recopier les montants.",
+    "- Liens : toujours au format [Nom du fichier](url) pour qu'ils s'affichent en carte cliquable.",
+    "- Titres courts, listes courtes, pas de jargon. Pas de formule de politesse finale.",
+    '',
+    '## Réflexe directeur de production',
+    "Tu raisonnes comme un directeur de production expérimenté qui protège le projet, le budget et la relation client. Quand la demande touche un projet, un devis, un lieu, un casting, un planning ou un tournage, termine par une section « ### À anticiper » de 2 à 4 points concrets propres à la situation (jamais une liste générique), par exemple :",
+    "- budget : postes oubliés ou sous-chiffrés (régie, transports, repas, défraiements, heures sup, assurance, location matériel, post-prod, droits musique), HT/TTC, acompte, validité du devis, marge de sécurité ;",
+    "- autorisations et lieux : tournage sur voie publique à Paris (Mission Cinéma / préfecture, délais), accord écrit du propriétaire, horaires, voisinage, options posées et date de bascule ;",
+    "- talents : disponibilités, cessions de droits (durée, territoire, supports), agents, essayages, mineurs ;",
+    "- planning : allers-retours client, validations nécessaires avant J-x, plan B météo, temps de post-production ;",
+    "- contrats : NDA, contrats freelance, PO client avant d'engager des frais.",
+    "Si une info manque pour décider, pose la question précise (une ou deux au maximum). Propose la prochaine action concrète (« je prépare le mail à l'agence ? »). Pas de section À anticiper pour une question simple ou hors production.",
     '',
     '## Ce que tu fais',
     "1. Brief → projet : à partir de notes de call, d'un mail ou d'un PDF, rédige la FICHE BRIEF (format ci-dessous). Montre-la, attends la validation, puis appelle creer_projet. Ensuite propose un brouillon de mail récap à l'équipe interne.",
@@ -890,7 +912,7 @@ function chat(history, attachments, user) {
     { type: 'text', text: knowledgePrompt(), cache_control: { type: 'ephemeral' } },
   ];
   const useWeb = prop('WEB_SEARCH', 'on') !== 'off';
-  const actions = [];
+  const actions = [], widgets = [];
   let resp = null;
   for (let loop = 0; loop < MAX_TOOL_LOOPS; loop++) {
     jobStep(loop === 0 ? 'Analyse de la demande' : 'Réfléchit à la suite');
@@ -903,6 +925,7 @@ function chat(history, attachments, user) {
     const results = resp.content.filter(b => b.type === 'tool_use').map(b => {
       let out, isErr = false;
       jobTool(b.name, b.input);
+      if (b.name === 'afficher_comparatif_devis' && b.input && (b.input.fournisseurs || []).length) widgets.push({ type: 'devis', data: b.input });
       try { out = runTool(b.name, b.input, user); } catch (e) { out = { erreur: String(e.message || e) }; isErr = true; }
       if (out && out.__blocks) { actions.push({ outil: b.name, ok: true, resume: out.__blocks.filter(x => x.type === 'text').map(x => x.text).join(' | ').slice(0, 300) }); return { type: 'tool_result', tool_use_id: b.id, content: out.__blocks }; }
       const str = JSON.stringify(out);
@@ -916,7 +939,7 @@ function chat(history, attachments, user) {
     || "J'ai effectué les actions demandées mais n'ai pas pu conclure : reformulez ou précisez la suite.";
   // Mémo pour les tours suivants (non affiché) : outils appelés et résultats clés.
   const memo = actions.length ? '\n\n<actions>' + actions.map(a => a.outil + (a.ok ? ' ✓ ' : ' ✗ ') + a.resume).join('\n') + '</actions>' : '';
-  return { reply: text, memo, actions: actions.map(a => ({ outil: a.outil, ok: a.ok })), lastUserText: lastText };
+  return { reply: text, memo, actions: actions.map(a => ({ outil: a.outil, ok: a.ok })), widgets: widgets, lastUserText: lastText };
 }
 
 // ───────────────────────── Rappels automatiques ─────────────────────────
