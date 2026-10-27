@@ -1,4 +1,4 @@
-/* Lieux — sélections de lieux à partager aux clients (page « #lieux » et éditeur « #sel-<id> »).
+/* Sélections clients (lieux, casting, moodboard) à partager aux clients (page « #lieux » et éditeur « #sel-<id> »).
    Le producteur dépose une présentation (PDF / PowerPoint), des photos ou un mail d'agence : l'assistant
    en tire une fiche par lieu (nom, photos, prix, infos, liens). Il vérifie, puis publie un lien client. */
 (function () {
@@ -7,6 +7,14 @@
   const { esc } = T;
   const SITE = location.origin + location.pathname.replace(/[^/]*$/, "");
   let st = { list: null, listLoading: false, sel: null, selId: "", loading: false, err: "", thumbs: {}, big: {}, busy: "", pending: [], draft: "", dirty: false, saving: false, open: {} };
+
+  // Libellés par type de sélection
+  const TYPES = {
+    lieux: { label: "Lieux", un: "lieu", des: "lieux", prefixe: "Option", nom: "Nom du lieu", zone: "Zone", zonePh: "Ville, quartier", prix: "Prix", prixPh: "ex. 1 800 € HT / jour", adresse: "Adresse", adressePh: "Pour la carte (optionnel)", dispo: "Disponibilités", desc: "Description pour le client", details: "« Surface : 200 m² »", drop: "Glissez ici la présentation de repérages (PDF ou PowerPoint ; Keynote : exportez en PDF), des photos, ou collez le mail d'une agence de lieux avec ses liens.", titre: "Repérages — Campagne X", intro: "Ex. Voici notre première sélection de lieux pour le tournage du 14 novembre. Dites-nous vos préférences avec ♥ et vos commentaires." },
+    casting: { label: "Casting", un: "talent", des: "talents", prefixe: "", nom: "Prénom Nom", zone: "Agence", zonePh: "Agence ou contact", prix: "Cachet", prixPh: "ex. 1 500 € / jour + droits 1 an", adresse: "Ville", adressePh: "Ville", dispo: "Disponibilités", desc: "Profil pour le client", details: "« Âge : 28 », « Taille : 1,78 m », « Instagram : @… »", drop: "Glissez ici la présentation casting (PDF ou PowerPoint), une planche de photos, des photos, ou collez le mail d'une agence avec les liens des books.", titre: "Casting — Campagne X", intro: "Ex. Voici notre première sélection casting. Dites-nous vos préférences avec ♥ et vos commentaires." },
+    moodboard: { label: "Moodboard", un: "planche", des: "planches", prefixe: "", nom: "Titre de la planche (ex. Lumière)", zone: "Sous-titre", zonePh: "optionnel", prix: "", prixPh: "", adresse: "", adressePh: "", dispo: "", desc: "Texte d'intention", details: "« Référence : … »", drop: "Glissez ici la présentation d'intentions, le traitement ou des images de référence.", titre: "Moodboard — Campagne X", intro: "Ex. Voici les grandes intentions visuelles du projet." },
+  };
+  const TY = (s) => TYPES[(s && s.type) || "lieux"] || TYPES.lieux;
 
   function el() { return document.getElementById("v-lieux"); }
   function selIdFromHash() { const h = decodeURIComponent(location.hash.replace("#", "")); return h.indexOf("sel-") === 0 ? h.slice(4) : ""; }
@@ -30,20 +38,21 @@
     if (!st.list && !st.listLoading) loadList();
     const L = st.list || [];
     root.innerHTML = `<div class="in sels">
-      <header class="vhead"><p class="eyebrow">Lieux</p><h1>Sélections clients.</h1>
-        <p>Déposez une présentation de repérages (PDF, PowerPoint), des photos ou le mail d'une agence de lieux : l'assistant crée une page à partager au client, avec chaque lieu, ses photos, son prix et ses liens. Vous vérifiez, puis vous publiez le lien.</p>
-        <div class="row"><button type="button" class="btn primary" data-sel-new="1">Nouvelle sélection</button>
-        <button type="button" class="btn ghost" data-ask="Crée un lien client pour présenter ces lieux : " data-noauto="1">Depuis le chat</button></div>
+      <header class="vhead"><p class="eyebrow">Sélections</p><h1>Sélections clients.</h1>
+        <p>Déposez une présentation (repérages, casting, moodboard), des photos ou le mail d'une agence : l'assistant crée une page à partager au client, avec chaque lieu ou talent, ses photos, son prix et ses liens. Vous vérifiez, puis vous publiez le lien.</p>
+        <div class="row"><button type="button" class="btn primary" data-sel-new="lieux">+ Lieux</button><button type="button" class="btn primary" data-sel-new="casting">+ Casting</button><button type="button" class="btn ghost" data-sel-new="moodboard">+ Moodboard</button>
+        <button type="button" class="btn ghost" data-ask="Crée un lien client pour présenter ce casting : " data-noauto="1">Depuis le chat</button></div>
       </header>
       ${st.listLoading && !L.length ? `<div class="loading">Chargement…</div>` : ""}
-      ${!st.listLoading && !L.length ? `<div class="empty">Aucune sélection pour l'instant. Créez la première, ou glissez une présentation dans le chat en demandant « crée un lien client pour ces lieux ».</div>` : ""}
+      ${!st.listLoading && !L.length ? `<div class="empty">Aucune sélection pour l'instant. Créez la première, ou glissez une présentation dans le chat en demandant « crée un lien client pour ce casting » (ou ces lieux).</div>` : ""}
       <div class="selgrid">${L.map((s) => `<a class="selcard plain" href="#sel-${esc(s.id)}">
-        <div class="selcard-top"><span class="tag ${s.publie ? "ok" : ""}">${s.publie ? "Publié" : "Brouillon"}</span><span class="mini">${esc(ago(s.maj))}</span></div>
+        <div class="selcard-top"><span><span class="tag">${esc(TY(s).label)}</span> <span class="tag ${s.publie ? "ok" : ""}">${s.publie ? "Publié" : "Brouillon"}</span></span><span class="mini">${esc(ago(s.maj))}</span></div>
         <h3>${esc(s.titre || "Sélection")}</h3>
         <p class="mini">${[s.client, s.code].filter(Boolean).map(esc).join(" · ") || "&nbsp;"}</p>
-        <p class="selstats"><b>${s.n || 0}</b> lieu(x)${s.publie ? ` · <b>${s.vues || 0}</b> vue(s) · <b>${s.retours || 0}</b> retour(s)` : ""}</p>
+        <p class="selstats"><b>${s.n || 0}</b> ${esc(TY(s).des)}${s.publie ? ` · <b>${s.vues || 0}</b> vue(s) · <b>${s.retours || 0}</b> retour(s)` : ""}</p>
         <p class="mini">${esc(String(s.owner || "").split("@")[0])}</p></a>`).join("")}</div>
     </div>`;
+    wire(root);
   }
 
   // ───────── Éditeur ─────────
@@ -63,43 +72,44 @@
     fb.forEach((r) => { if (r.type === "like") likes[r.lieu] = (likes[r.lieu] || 0) + 1; if (r.type === "comment") (comments[r.lieu] = comments[r.lieu] || []).push(r); });
     const shown = s.lieux.filter((l) => !l.masque).length;
     const projets = (T.getDash && T.getDash() && T.getDash().projets) || [];
+    const ty = TY(s);
     root.innerHTML = `<div class="in seled">
-      <p class="back"><a href="#lieux">← Sélections</a></p>
+      <p class="back"><a href="#lieux">← Sélections</a> <span class="tag">${esc(ty.label)}</span></p>
       <header class="sel-head">
-        <input class="sel-title" data-f="titre" value="${esc(s.titre)}" aria-label="Titre de la sélection" placeholder="Titre (ex. Repérages — Campagne X)">
+        <input class="sel-title" data-f="titre" value="${esc(s.titre)}" aria-label="Titre de la sélection" placeholder="Titre (ex. ${esc(ty.titre)})">
         <div class="sel-meta">
           <label>Client<input data-f="client" value="${esc(s.client || "")}" placeholder="Nom du client"></label>
           <label>Projet<input data-f="code" value="${esc(s.code || "")}" placeholder="Code projet" list="sel-codes"></label>
           <datalist id="sel-codes">${projets.map((p) => `<option value="${esc(p["Code projet"] || "")}">${esc(p["Nom du projet"] || "")}</option>`).join("")}</datalist>
-          <label class="pref">Numérotation<input data-f="prefixe" value="${esc(s.prefixe === undefined ? "Option" : s.prefixe)}" placeholder="Option" title="Affiché devant le numéro : « Option 1 », « Décor 1 »… Vide = numéro seul"></label>
-          <label class="chk"><input type="checkbox" data-f="show_prix" ${s.show_prix !== false ? "checked" : ""}> Montrer les prix au client</label>
+          <label class="pref">Numérotation<input data-f="prefixe" value="${esc(s.prefixe === undefined ? ty.prefixe : s.prefixe)}" placeholder="vide = numéro seul" title="Affiché devant le numéro : « Option 1 », « Décor 1 »… Vide = numéro seul"></label>
+          ${ty.prix ? `<label class="chk"><input type="checkbox" data-f="show_prix" ${s.show_prix !== false ? "checked" : ""}> Montrer les ${ty === TYPES.casting ? "cachets" : "prix"} au client</label>` : ""}
         </div>
-        <label class="sel-intro">Mot d'introduction pour le client<textarea data-f="intro" rows="2" placeholder="Ex. Voici notre première sélection de lieux pour le tournage du 14 novembre. Dites-nous vos préférences avec ♥ et vos commentaires.">${esc(s.intro || "")}</textarea></label>
+        <label class="sel-intro">Mot d'introduction pour le client<textarea data-f="intro" rows="2" placeholder="${esc(ty.intro)}">${esc(s.intro || "")}</textarea></label>
       </header>
 
       <section class="pubbar ${s.publie ? "on" : ""}">
         <div>${s.publie
           ? `<b>Lien client publié</b> · ${s.vues || 0} vue(s)${s.derniere_vue ? ", dernière il y a " + esc(ago(s.derniere_vue)) : ""} · ${fb.filter((r) => r.type === "like").length} ♥ · ${fb.filter((r) => r.type === "comment").length} commentaire(s)<div class="linkrow"><input readonly value="${esc(link)}" aria-label="Lien client" id="sel-link"><button type="button" class="btn small primary" data-sel-copy="1">Copier le lien</button><a class="btn small ghost" href="${esc(link)}" target="_blank" rel="noopener">Voir comme le client ↗</a></div>`
-          : `<b>Brouillon</b> · ${shown} lieu(x) visibles. Vérifiez noms, prix et photos, puis publiez : le client n'a pas besoin de compte.`}</div>
+          : `<b>Brouillon</b> · ${shown} ${esc(ty.des)} visibles. Vérifiez noms, prix et photos, puis publiez : le client n'a pas besoin de compte.`}</div>
         <div class="pubbtns">${s.publie ? `<button type="button" class="btn small ghost" data-sel-unpub="1">Dépublier</button>` : `<button type="button" class="btn primary" data-sel-pub="1" ${shown ? "" : "disabled"}>Publier le lien client</button>`}
           <span class="mini savestate">${st.saving ? "Enregistrement…" : st.dirty ? "Modifications non enregistrées" : "Enregistré"}</span></div>
       </section>
 
       <section class="wsdrop seldrop" id="sel-drop">
-        <label for="sel-text" class="drop-h">${s.lieux.length ? "Ajouter des lieux" : "Importer la présentation"} <span class="mini">— une présentation déposée est analysée automatiquement, puis les photos HD sont cherchées sur les liens des lieux</span></label>
-        <textarea id="sel-text" rows="3" placeholder="Glissez ici la présentation de repérages (PDF ou PowerPoint ; Keynote : exportez en PDF), des photos, ou collez le mail d'une agence de lieux avec ses liens.">${esc(st.draft)}</textarea>
+        <label for="sel-text" class="drop-h">${s.lieux.length ? "Ajouter des " + esc(ty.des) : "Importer la présentation"} <span class="mini">— une présentation déposée est analysée automatiquement, puis les photos HD sont cherchées sur les liens</span></label>
+        <textarea id="sel-text" rows="3" placeholder="${esc(ty.drop)}">${esc(st.draft)}</textarea>
         <div class="pending">${st.pending.map((f, i) => `<span class="tag ${f.status === "error" ? "hot" : ""}">${f.preview ? `<img src="${f.preview}" alt="">` : "📎"} ${esc(f.label || f.name)}${f.status === "uploading" ? " …" : ""}<button type="button" data-sel-unpend="${i}" aria-label="Retirer">×</button></span>`).join("")}</div>
         ${st.busy ? `<p class="busy">${esc(st.busy)}</p>` : ""}
         <div class="drop-bar">
           <span><button type="button" class="btn ghost small" data-sel-attach="1">Ajouter des fichiers</button>
-          ${projets.length ? `<select data-sel-ws aria-label="Importer les lieux d'un workspace projet"><option value="">Importer d'un workspace projet…</option>${projets.map((p) => `<option value="${esc(p["Code projet"] || "")}">${esc((p["Code projet"] || "") + " — " + (p["Nom du projet"] || ""))}</option>`).join("")}</select>` : ""}</span>
+          ${projets.length ? `<select data-sel-ws aria-label="Importer depuis un workspace projet"><option value="">Importer d'un workspace projet…</option>${projets.map((p) => `<option value="${esc(p["Code projet"] || "")}">${esc((p["Code projet"] || "") + " — " + (p["Nom du projet"] || ""))}</option>`).join("")}</select>` : ""}</span>
           <button type="button" class="btn primary" data-sel-analyze="1" ${st.busy || st.pending.some((f) => f.status === "uploading") ? "disabled" : ""}>Analyser et créer les fiches</button>
         </div>
         <input type="file" id="sel-file" multiple hidden accept="application/pdf,.pptx,.key,image/*,.txt,.doc,.docx">
         <input type="file" id="sel-photo" multiple hidden accept="image/*">
       </section>
 
-      ${s.lieux.length ? `<div class="sel-tools"><h3>${s.lieux.length} lieu(x)</h3>${s.lieux.some((l) => (l.liens || []).length) ? `<button type="button" class="btn small ghost" data-sel-hd="1" ${st.busy ? "disabled" : ""}>Photos HD depuis les liens</button>` : ""}<span class="mini">La première photo est la couverture. Glissez les photos pour les réordonner, ou cliquez ★ pour en faire la couverture.</span></div>` : ""}
+      ${s.lieux.length ? `<div class="sel-tools"><h3>${s.lieux.length} ${esc(ty.des)}</h3>${s.lieux.some((l) => (l.liens || []).length) ? `<button type="button" class="btn small ghost" data-sel-hd="1" ${st.busy ? "disabled" : ""}>Photos HD depuis les liens</button>` : ""}<span class="mini">La première photo est la couverture. Glissez les photos pour les réordonner, ou cliquez ★ pour en faire la couverture.</span></div>` : ""}
       <div class="lieux-ed">${s.lieux.map((l, i) => lieuCard(l, i, s.lieux.length, likes[l.id] || 0, comments[l.id] || [])).join("")}</div>
 
       <p class="mini" style="margin-top:28px"><button type="button" class="linkbtn danger" data-sel-del="1">Supprimer cette sélection</button></p>
@@ -109,23 +119,21 @@
   }
 
   function lieuCard(l, i, n, nLikes, comms) {
-    const ph = l.photos || [];
+    const ph = l.photos || [], ty = TY(st.sel);
+    const fld = (k, lab, phd) => lab ? `<label>${esc(lab)}<input data-l="${i}" data-k="${k}" value="${esc(l[k] || "")}" placeholder="${esc(phd || "optionnel")}"></label>` : "";
     return `<article class="led ${l.masque ? "dim" : ""}" data-i="${i}">
       <div class="led-photos" data-photos="${i}">
         ${ph.map((p, k) => `<figure class="lph ${k === 0 ? "lph-main" : ""}" draggable="true" data-ph="${i}:${k}"><img data-thumb="${esc(p)}" data-big="${k === 0 ? 1 : ""}" alt="" ${(k === 0 && st.big[p]) || st.thumbs[p] ? `src="${(k === 0 && st.big[p]) || st.thumbs[p]}"` : ""}><div class="lph-b">${k ? `<button type="button" data-ph-cover="${i}:${k}" title="Mettre en couverture" aria-label="Mettre en couverture">★</button>` : `<span>Couverture</span>`}<button type="button" data-ph-del="${i}:${k}" title="Retirer la photo" aria-label="Retirer la photo">×</button></div></figure>`).join("")}
         <button type="button" class="lph add" data-ph-add="${i}">+ Photo</button>
       </div>
       <div class="led-body">
-        <div class="led-row"><span class="led-n" title="${esc(((st.sel.prefixe === undefined ? "Option" : st.sel.prefixe) + " " + (i + 1)).trim())}">${i + 1}</span><input class="led-name" data-l="${i}" data-k="nom" value="${esc(l.nom)}" placeholder="Nom du lieu" aria-label="Nom du lieu"></div>
+        <div class="led-row"><span class="led-n" title="${esc(((st.sel.prefixe === undefined ? ty.prefixe : st.sel.prefixe) + " " + (i + 1)).trim())}">${i + 1}</span><input class="led-name" data-l="${i}" data-k="nom" value="${esc(l.nom)}" placeholder="${esc(ty.nom)}" aria-label="${esc(ty.nom)}"></div>
         <div class="led-grid">
-          <label>Zone<input data-l="${i}" data-k="zone" value="${esc(l.zone || "")}" placeholder="Ville, quartier"></label>
-          <label>Prix<input data-l="${i}" data-k="prix" value="${esc(l.prix || "")}" placeholder="ex. 1 800 € HT / jour"></label>
-          <label>Adresse<input data-l="${i}" data-k="adresse" value="${esc(l.adresse || "")}" placeholder="Pour la carte (optionnel)"></label>
-          <label>Disponibilités<input data-l="${i}" data-k="dispo" value="${esc(l.dispo || "")}" placeholder="optionnel"></label>
+          ${fld("zone", ty.zone, ty.zonePh)}${fld("prix", ty.prix, ty.prixPh)}${fld("adresse", ty.adresse, ty.adressePh)}${fld("dispo", ty.dispo, "optionnel")}
         </div>
-        <label>Description pour le client<textarea data-l="${i}" data-k="description" rows="3">${esc(l.description || "")}</textarea></label>
-        <label>Infos clés <span class="mini">(une par ligne, « Surface : 200 m² »)</span><textarea data-l="${i}" data-k="details" rows="2">${esc(Object.keys(l.details || {}).map((k) => k + " : " + l.details[k]).join("\n"))}</textarea></label>
-        <label>Liens <span class="mini">(galerie, site, Google Maps — un par ligne)</span><textarea data-l="${i}" data-k="liens" rows="1">${esc((l.liens || []).join("\n"))}</textarea></label>
+        <label>${esc(ty.desc)}<textarea data-l="${i}" data-k="description" rows="3">${esc(l.description || "")}</textarea></label>
+        <label>Infos clés <span class="mini">(une par ligne, ${esc(ty.details)})</span><textarea data-l="${i}" data-k="details" rows="2">${esc(Object.keys(l.details || {}).map((k) => k + " : " + l.details[k]).join("\n"))}</textarea></label>
+        <label>Liens <span class="mini">(${ty === TYPES.casting ? "book, agence, Instagram" : "galerie, site, Google Maps"} — un par ligne)</span><textarea data-l="${i}" data-k="liens" rows="1">${esc((l.liens || []).join("\n"))}</textarea></label>
         <label class="internal">Note interne <span class="mini">(jamais montrée au client)</span><textarea data-l="${i}" data-k="note_interne" rows="1">${esc(l.note_interne || "")}</textarea></label>
         ${nLikes || comms.length ? `<div class="led-fb"><b>Retours client :</b> ${nLikes ? `♥ ${nLikes}` : ""}${comms.map((c) => `<p><b>${esc(c.nom || "Client")}</b> <span class="mini">${esc(ago(c.date))}</span><br>${esc(c.texte)}</p>`).join("")}</div>` : ""}
         <div class="led-foot">
@@ -229,7 +237,7 @@
     try {
       st.sel = (await T.api("sel_analyze", { id: st.sel.id, files, text })).selection;
       st.pending = []; st.draft = ""; st.dirty = false;
-      T.toast(st.sel.lieux.length + " lieu(x) dans la sélection");
+      T.toast(st.sel.lieux.length + " " + TY(st.sel).des + " dans la sélection");
     } catch (e) { T.toast(e.message); st.busy = ""; render(); return; }
     st.busy = ""; render();
     // Automatique : si des lieux ont un lien, on va chercher leurs photos en haute définition.
@@ -237,7 +245,7 @@
   }
   async function fetchHd(lieu) {
     await flush();
-    st.busy = (lieu ? "Recherche des photos HD sur le lien du lieu…" : "Recherche des photos en haute définition sur les liens des lieux (1 à 2 min)…"); render();
+    st.busy = (lieu ? "Recherche des photos HD sur le lien…" : "Recherche des photos en haute définition sur les liens (1 à 2 min)…"); render();
     try {
       const r = await T.api("sel_hd", { id: st.sel.id, lieu: lieu || "" });
       st.sel = r.selection; st.dirty = false;
@@ -248,8 +256,8 @@
   async function importWs(code) {
     if (!code) return;
     await flush();
-    st.busy = "Import des lieux du workspace " + code + "…"; render();
-    try { st.sel = (await T.api("sel_from_ws", { id: st.sel.id, code })).selection; T.toast("Lieux importés"); }
+    st.busy = "Import du workspace " + code + "…"; render();
+    try { st.sel = (await T.api("sel_from_ws", { id: st.sel.id, code })).selection; T.toast("Import terminé"); }
     catch (e) { T.toast(e.message); }
     finally { st.busy = ""; render(); }
   }
@@ -298,7 +306,7 @@
     root.addEventListener("click", async (e) => {
       const q = (a) => e.target.closest(a);
       const S = st.sel;
-      if (q("[data-sel-new]")) { try { const s2 = (await T.api("sel_create", { titre: "Sélection de lieux" })).selection; st.list = null; location.hash = "sel-" + s2.id; } catch (err) { T.toast(err.message); } return; }
+      if (q("[data-sel-new]")) { const type = q("[data-sel-new]").dataset.selNew || "lieux"; try { const s2 = (await T.api("sel_create", { type })).selection; st.list = null; location.hash = "sel-" + s2.id; } catch (err) { T.toast(err.message); } return; }
       if (!S) return;
       if (q("[data-sel-attach]")) return document.getElementById("sel-file").click();
       if (q("[data-sel-unpend]")) { st.pending.splice(+q("[data-sel-unpend]").dataset.selUnpend, 1); return render(); }

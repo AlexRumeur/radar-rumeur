@@ -57,15 +57,29 @@
     for (let n = 1; n <= doc.numPages && images.length < MAX_IMG; n++) {
       onStep && onStep("Lecture de la page " + n + "/" + doc.numPages + "…");
       const page = await doc.getPage(n);
-      let txt = ""; try { txt = (await page.getTextContent()).items.map((i) => i.str).join(" ").replace(/\s+/g, " ").trim(); } catch (e) {}
+      let items = []; try { items = (await page.getTextContent()).items.filter((i) => i.str && i.str.trim()); } catch (e) {}
+      const txt = items.map((i) => i.str).join(" ").replace(/\s+/g, " ").trim();
       let links = []; try { links = (await page.getAnnotations()).map((a) => a.url || a.unsafeUrl).filter((u) => /^https?:\/\//.test(u || "")); } catch (e) {}
-      texts.push("— Page " + n + " —\n" + (txt || "(pas de texte)") + (links.length ? "\nLiens : " + [...new Set(links)].join(" ") : ""));
+      const pageText = "— Page " + n + " —\n" + (txt || "(pas de texte)") + (links.length ? "\nLiens : " + [...new Set(links)].join(" ") : "");
+      texts.push(pageText);
       if (opts.textOnly) { page.cleanup && page.cleanup(); continue; }
       const ops = await page.getOperatorList();
+      // Position des images sur la page (matrice de transformation courante), pour associer photos et noms sur les planches.
+      const [vx0, vy0, vx1, vy1] = page.view, PW = vx1 - vx0, PH = vy1 - vy0;
+      const mul = (m, c) => [m[0] * c[0] + m[1] * c[2], m[0] * c[1] + m[1] * c[3], m[2] * c[0] + m[3] * c[2], m[2] * c[1] + m[3] * c[3], m[4] * c[0] + m[5] * c[2] + c[4], m[4] * c[1] + m[5] * c[3] + c[5]];
+      const box = (c) => { const xs = [c[4], c[0] + c[4], c[2] + c[4], c[0] + c[2] + c[4]], ys = [c[5], c[1] + c[5], c[3] + c[5], c[1] + c[3] + c[5]]; const pct = (v, a, L) => Math.max(0, Math.min(100, Math.round(100 * (v - a) / L))); return { x: pct(Math.min(...xs), vx0, PW), w: pct(Math.max(...xs), vx0, PW) - pct(Math.min(...xs), vx0, PW), y: 100 - pct(Math.max(...ys), vy0, PH), h: pct(Math.max(...ys), vy0, PH) - pct(Math.min(...ys), vy0, PH) }; };
+      let ctm = [1, 0, 0, 1, 0, 0]; const stack = []; const placed = [];
       let k = 0, failed = 0;
       for (let i = 0; i < ops.fnArray.length && images.length < MAX_IMG; i++) {
-        if (!IMG.includes(ops.fnArray[i])) continue;
-        const id = ops.argsArray[i][0];
+        const fn = ops.fnArray[i], a = ops.argsArray[i];
+        if (fn === O.save) { stack.push(ctm); continue; }
+        if (fn === O.restore) { ctm = stack.pop() || [1, 0, 0, 1, 0, 0]; continue; }
+        if (fn === O.transform) { ctm = mul(a, ctm); continue; }
+        if (fn === O.paintFormXObjectBegin) { stack.push(ctm); if (a && Array.isArray(a[0]) && a[0].length === 6) ctm = mul(a[0], ctm); continue; }
+        if (fn === O.paintFormXObjectEnd) { ctm = stack.pop() || [1, 0, 0, 1, 0, 0]; continue; }
+        if (!IMG.includes(fn)) continue;
+        const id = a[0];
+        const where = box(ctm);
         if (typeof id !== "string" || seen.has(id)) continue;
         seen.add(id);
         try {
@@ -76,8 +90,12 @@
           if (!cv) { failed++; continue; }
           if (isFlat(cv)) continue;
           const blob = await toJpeg(cv);
-          if (blob) { k++; const f = new File([blob], base + " — p" + n + " — " + k + ".jpg", { type: "image/jpeg" }); f.page = n; images.push(f); }
+          if (blob) { k++; const f = new File([blob], base + " — p" + n + " — " + k + ".jpg", { type: "image/jpeg" }); f.page = n; images.push(f); placed.push({ k, ...where }); }
         } catch (e) { failed++; }
+      }
+      if (placed.length >= 2) {   // planche : on décrit où sont les photos et les textes
+        const T = items.slice(0, 60).map((it) => { const x = Math.round(100 * (it.transform[4] - vx0) / PW), y = 100 - Math.round(100 * (it.transform[5] - vy0) / PH); return "« " + it.str.trim().slice(0, 40) + " » (gauche " + x + " %, haut " + y + " %)"; });
+        texts[texts.length - 1] = pageText + "\nDisposition : " + placed.map((p) => "photo p" + n + "-" + p.k + " (gauche " + p.x + " %, haut " + p.y + " %, largeur " + p.w + " %, hauteur " + p.h + " %)").join(" ; ") + (T.length ? " ; textes : " + T.join(" ; ") : "");
       }
       if (!k && failed) {   // images illisibles une à une : on prend la page entière
         const v0 = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: 1600 / Math.max(v0.width, v0.height) });
@@ -98,6 +116,9 @@
     const zip = await window.JSZip.loadAsync(await file.arrayBuffer());
     const slides = Object.keys(zip.files).filter((p) => /^ppt\/slides\/slide\d+\.xml$/.test(p)).sort((a, b) => +a.match(/(\d+)\.xml/)[1] - +b.match(/(\d+)\.xml/)[1]);
     const base = baseName(file.name), images = [], texts = [], seen = new Set();
+    let SW = 12192000, SH = 6858000;
+    try { const pres = await zip.file("ppt/presentation.xml").async("string"); const m = pres.match(/<p:sldSz[^>]*cx="(\d+)"[^>]*cy="(\d+)"/); if (m) { SW = +m[1]; SH = +m[2]; } } catch (e) {}
+    const posOf = (frag) => { const o = frag.match(/<a:off x="(-?\d+)" y="(-?\d+)"\/>/), e = frag.match(/<a:ext cx="(\d+)" cy="(\d+)"\/>/); if (!o) return null; const P = (v, L) => Math.max(0, Math.min(100, Math.round(100 * v / L))); return { x: P(+o[1], SW), y: P(+o[2], SH), w: e ? P(+e[1], SW) : 0, h: e ? P(+e[2], SH) : 0 }; };
     for (let s = 0; s < slides.length && images.length < MAX_IMG; s++) {
       const n = s + 1;
       onStep && onStep("Lecture de la diapo " + n + "/" + slides.length + "…");
@@ -110,6 +131,10 @@
       texts.push("— Page " + n + " —\n" + (txt || "(pas de texte)") + (links.length ? "\nLiens : " + [...new Set(links)].join(" ") : ""));
       if (!relsF || opts.textOnly) continue;
       const embeds = (xml.match(/r:embed="([^"]+)"/g) || []).map((x) => x.slice(9, -1));
+      // Position de chaque photo (bloc <p:pic>) et de chaque zone de texte (<p:sp>) sur la diapo
+      const picPos = {}; (xml.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []).forEach((pic) => { const r = (pic.match(/r:embed="([^"]+)"/) || [])[1]; const p = posOf(pic); if (r && p && !picPos[r]) picPos[r] = p; });
+      const txtPos = (xml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) || []).map((sp) => { const t = (sp.match(/<a:t>([^<]*)<\/a:t>/g) || []).map((x) => x.replace(/<\/?a:t>/g, "")).join(" ").trim(); const p = posOf(sp); return t && p ? "« " + t.slice(0, 40) + " » (gauche " + p.x + " %, haut " + p.y + " %)" : ""; }).filter(Boolean).slice(0, 60);
+      const placed = [];
       let k = 0;
       for (const rid of embeds) {
         const target = map[rid]; if (!target) continue;
@@ -126,10 +151,11 @@
           const cv = document.createElement("canvas"); cv.width = w; cv.height = h; cv.getContext("2d").drawImage(bmp, 0, 0, w, h);
           if (isFlat(cv)) continue;
           const blob = await toJpeg(cv);
-          if (blob) { k++; const out = new File([blob], base + " — p" + n + " — " + k + ".jpg", { type: "image/jpeg" }); out.page = n; images.push(out); }
+          if (blob) { k++; const out = new File([blob], base + " — p" + n + " — " + k + ".jpg", { type: "image/jpeg" }); out.page = n; images.push(out); if (picPos[rid]) placed.push({ k, ...picPos[rid] }); }
         } catch (e) {}
         if (images.length >= MAX_IMG) break;
       }
+      if (placed.length >= 2) texts[texts.length - 1] += "\nDisposition : " + placed.map((p) => "photo p" + n + "-" + p.k + " (gauche " + p.x + " %, haut " + p.y + " %, largeur " + p.w + " %, hauteur " + p.h + " %)").join(" ; ") + (txtPos.length ? " ; textes : " + txtPos.join(" ; ") : "");
     }
     return { images, text: new File([texts.join("\n\n")], base + " — textes.txt", { type: "text/plain" }), pages: slides.length, kind: "pptx" };
   }

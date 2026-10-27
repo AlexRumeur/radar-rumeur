@@ -7,10 +7,14 @@
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
   const parts = () => decodeURIComponent(location.hash.replace(/^#/, "")).split("/");
   const token = parts()[0];
-  const DEMO = token === "demo";
+  const DEMO = token === "demo" || token === "demo-casting";
   let S = null, view = store.get("rumeur_lieux_view") || "grille", thumbs = { 480: {}, 1000: {}, 1600: {}, 2400: {} }, gi = 0;
   let visitor = store.get("rumeur_visitor");
   if (!visitor) { visitor = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set("rumeur_visitor", visitor); }
+  const WORDS = { lieux: { eyebrow: "Sélection de lieux", un: "lieu", des: "lieux", voir: "cliquez sur un lieu pour voir toutes les photos", jaime: "J'aime ce lieu", noted: "vous aimez ce lieu", prec: "Lieu précédent", suiv: "Lieu suivant", map: true },
+    casting: { eyebrow: "Sélection casting", un: "talent", des: "talents", voir: "cliquez sur un talent pour voir toutes ses photos", jaime: "J'aime ce profil", noted: "vous aimez ce profil", prec: "Talent précédent", suiv: "Talent suivant", map: false },
+    moodboard: { eyebrow: "Moodboard", un: "planche", des: "planches", voir: "cliquez sur une planche pour voir toutes les images", jaime: "J'aime", noted: "vous aimez cette planche", prec: "Planche précédente", suiv: "Planche suivante", map: false } };
+  const W = () => WORDS[(S && S.type) || "lieux"] || WORDS.lieux;
   const liked = (id) => store.get("rumeur_like_" + token + "_" + id) === "1";
 
   // ───────── Serveur ─────────
@@ -41,7 +45,7 @@
   // ───────── Rendu ─────────
   const heartSvg = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7 4.5c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.4 0 5.6 3.4 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
   function label(i) { const p = S.prefixe === undefined ? "Option" : S.prefixe; return (p ? p + " " : "") + (i + 1); }
-  function mapLink(l) { const q = l.adresse || (l.zone ? l.nom + ", " + l.zone : ""); return q ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q) : ""; }
+  function mapLink(l) { if (!W().map) return ""; const q = l.adresse || (l.zone ? l.nom + ", " + l.zone : ""); return q ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q) : ""; }
   function chips(l) {
     return [S.show_prix && l.prix ? `<span class="chip"><b>${esc(l.prix)}</b></span>` : "", l.dispo ? `<span class="chip">${esc(l.dispo)}</span>` : ""].join("");
   }
@@ -54,13 +58,13 @@
   function detailsHtml(l) { const k = Object.keys(l.details || {}); return k.length ? `<dl>${k.map((x) => `<dt>${esc(x)}</dt><dd>${esc(l.details[x])}</dd>`).join("")}</dl>` : ""; }
   function heartBtn(l, big) {
     const on = liked(l.id);
-    return big ? `<button type="button" class="btn big-heart ${on ? "on" : ""}" data-like="${esc(l.id)}" aria-pressed="${on}">${heartSvg}${on ? "J'aime" : "J'aime ce lieu"}${l.likes ? ` · ${l.likes}` : ""}</button>`
+    return big ? `<button type="button" class="btn big-heart ${on ? "on" : ""}" data-like="${esc(l.id)}" aria-pressed="${on}">${heartSvg}${on ? "J'aime" : W().jaime}${l.likes ? ` · ${l.likes}` : ""}</button>`
       : `<button type="button" class="heart ${on ? "on" : ""}" data-like="${esc(l.id)}" aria-pressed="${on}" aria-label="J'aime ${esc(l.nom)}">${heartSvg}${l.likes ? `<span>${l.likes}</span>` : ""}</button>`;
   }
   function commentsHtml(l) {
     return `<div class="comments"><h3>Commentaires${(l.comments || []).length ? ` (${l.comments.length})` : ""}</h3>
       ${(l.comments || []).map((c) => `<p class="com"><b>${esc(c.nom)}</b> <span>${esc(new Date(c.date).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }))}</span><br>${esc(c.texte)}</p>`).join("")}
-      <form class="cform" data-comment="${esc(l.id)}"><input name="nom" placeholder="Votre prénom" maxlength="60" value="${esc(store.get("rumeur_nom") || "")}" aria-label="Votre prénom"><textarea name="texte" placeholder="Une question, une préférence, une demande de visite…" maxlength="1500" required aria-label="Commentaire"></textarea><div><button class="btn primary" type="submit">Envoyer à l'équipe Rumeur</button></div></form></div>`;
+      <form class="cform" data-comment="${esc(l.id)}"><input name="nom" placeholder="Votre prénom" maxlength="60" value="${esc(store.get("rumeur_nom") || "")}" aria-label="Votre prénom"><textarea name="texte" placeholder="${(S.type || "lieux") === "lieux" ? "Une question, une préférence, une demande de visite…" : "Une question, une préférence, une remarque…"}" maxlength="1500" required aria-label="Commentaire"></textarea><div><button class="btn primary" type="submit">Envoyer à l'équipe Rumeur</button></div></form></div>`;
   }
 
   function render() {
@@ -68,15 +72,16 @@
     const L = S.lieux;
     const pid = parts()[1];
     document.title = S.titre + " · Rumeur";
+    document.body.dataset.type = S.type || "lieux";
     app.innerHTML = `
       <header class="top"><div class="in"><img src="img/rumeur-logo.png" alt="Rumeur">${S.contact && S.contact.email ? `<a class="contact" href="mailto:${esc(S.contact.email)}">${esc(S.contact.nom || "Contact")}</a>` : ""}</div></header>
       <main class="in">
         <section class="hero">
-          <p class="eyebrow">Sélection de lieux${S.client ? " · " + esc(S.client) : ""}</p>
+          <p class="eyebrow">${esc(W().eyebrow)}${S.client ? " · " + esc(S.client) : ""}</p>
           <h1>${esc(S.titre)}</h1>
           ${S.intro ? `<p class="intro">${esc(S.intro)}</p>` : ""}
         </section>
-        <div class="bar"><span>${L.length} lieu${L.length > 1 ? "x" : ""} · cliquez sur un lieu pour voir toutes les photos · ♥ pour nous dire vos préférences</span>
+        <div class="bar"><span>${L.length} ${L.length > 1 ? W().des : W().un} · ${W().voir} · ♥ pour nous dire vos préférences</span>
           <span class="seg" role="group" aria-label="Affichage"><button type="button" data-view="grille" aria-pressed="${view === "grille"}">Grille</button><button type="button" data-view="detail" aria-pressed="${view === "detail"}">Détaillée</button></span></div>
         ${view === "grille" ? `<div class="grid">${L.map((l, i) => `<div>
             <button type="button" class="card" data-open="${esc(l.id)}" aria-label="Voir ${esc(l.nom)}"><div class="ph">${img(l.photos[0], 1000, l.nom)}<span class="num">${esc(label(i))}</span>${l.photos.length > 1 ? `<span class="nph">${l.photos.length} photos</span>` : ""}</div></button>
@@ -100,7 +105,7 @@
     if (l.photos[gi + 1]) want(l.photos[gi + 1], 1600);
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(l.nom)}">
       <div class="sheet-h"><div class="in"><a href="#${esc(token)}" class="ib" aria-label="Fermer" style="text-decoration:none;color:inherit">×</a>
-        <span class="nav"><button type="button" class="ib" data-go="${i - 1}" ${i ? "" : "disabled"} aria-label="Lieu précédent">‹</button>${i + 1} / ${L.length}<button type="button" class="ib" data-go="${i + 1}" ${i < L.length - 1 ? "" : "disabled"} aria-label="Lieu suivant">›</button></span></div></div>
+        <span class="nav"><button type="button" class="ib" data-go="${i - 1}" ${i ? "" : "disabled"} aria-label="${W().prec}">‹</button>${i + 1} / ${L.length}<button type="button" class="ib" data-go="${i + 1}" ${i < L.length - 1 ? "" : "disabled"} aria-label="${W().suiv}">›</button></span></div></div>
       <div class="in sheet-b"><div class="sgrid">
         <div class="gal">${l.photos.length ? `<div class="ph main" data-zoom="${esc(l.id)}:${gi}">${img(l.photos[gi], 1600, l.nom)}</div>
           ${l.photos.length > 1 ? `<div class="strip">${l.photos.map((p, k) => `<button type="button" data-gi="${k}" aria-current="${k === gi}" aria-label="Photo ${k + 1}">${img(p, 480, "")}</button>`).join("")}</div>` : ""}` : `<div class="ph main"></div>`}</div>
@@ -143,7 +148,7 @@
       const id = lk.dataset.like, l = S.lieux.find((x) => x.id === id), on = !liked(id);
       store.set("rumeur_like_" + token + "_" + id, on ? "1" : "0"); l.likes = Math.max(0, (l.likes || 0) + (on ? 1 : -1));
       const sh = document.querySelector(".sheet"), y = sh ? sh.scrollTop : 0; render(); if (sh) document.querySelector(".sheet").scrollTop = y;
-      if (on) toast("Noté : l'équipe Rumeur verra que vous aimez ce lieu");
+      if (on) toast("Noté : l'équipe Rumeur verra que " + W().noted);
       try { await call("pub_feedback", { lieu: id, type: "like", visitor }); } catch (err) { toast(err.message); }
     }
   });
@@ -184,6 +189,13 @@
   // ───────── Démo (lieux.html#demo) ─────────
   function demo(action, p) {
     const pal = ["#b9a58f", "#8fa3b5", "#a9b88f", "#c4a28c", "#9d97b8", "#b7b09a", "#8f9e98"];
+    if (action === "pub_sel" && token === "demo-casting") return Promise.resolve({ selection: { type: "casting", titre: "Casting — Campagne printemps (exemple)", client: "Maison exemple", intro: "Voici notre première sélection de talents. Dites-nous vos préférences avec ♥.", show_prix: true, prefixe: "", contact: { nom: "Alejandro", email: "contact@example.com" },
+      lieux: [
+        { id: "a", nom: "Inès Martin", zone: "Agence exemple", prix: "1 200 € / jour + droits 1 an", dispo: "14 et 15 nov.", description: "Visage lumineux, très à l'aise en mouvement ; déjà vue en campagne beauté.", details: { "Âge": "27", "Taille": "1,76 m", "Instagram": "@exemple (12 k)" }, photos: ["a1", "a2", "a3"], liens: [], likes: 1, comments: [] },
+        { id: "b", nom: "Yanis Benali", zone: "Indépendant", prix: "900 € / jour", description: "Danseur contemporain, présence forte à l'image.", details: { "Âge": "31", "Taille": "1,84 m" }, photos: ["b1", "b2"], liens: [], likes: 0, comments: [] },
+        { id: "c", nom: "Margaux Leroy", zone: "Agence exemple", prix: "", description: "Profil mode, cheveux courts, regard intense.", details: { "Âge": "24" }, photos: ["c1", "c2", "c3"], liens: [], likes: 0, comments: [] },
+        { id: "d", nom: "Odile Faure", zone: "Agence exemple", prix: "1 000 € / jour", description: "68 ans, ancienne danseuse étoile.", details: {}, photos: ["d1"], liens: [], likes: 2, comments: [] },
+      ] } });
     if (action === "pub_sel") return Promise.resolve({ selection: { titre: "Repérages — Campagne printemps (exemple)", client: "Maison exemple", intro: "Voici notre première sélection de lieux pour le tournage. Dites-nous vos préférences avec ♥ et laissez vos questions en commentaire.", show_prix: true, prefixe: "Option", contact: { nom: "Alejandro", email: "contact@example.com" },
       lieux: [
         { id: "a", nom: "Atelier d'artiste sous verrière", zone: "Paris 20e", prix: "1 500 € HT / jour", dispo: "Novembre", description: "Atelier de 150 m² baigné de lumière naturelle : murs blancs, parquet clair, grande hauteur sous charpente.", details: { Surface: "150 m²", Lumière: "Verrière nord" }, photos: ["a1", "a2", "a3", "a4"], liens: [], likes: 2, comments: [{ nom: "Claire", texte: "Très beau, la lumière est parfaite pour la séquence portrait.", date: new Date().toISOString() }] },

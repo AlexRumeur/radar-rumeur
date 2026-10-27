@@ -65,9 +65,9 @@
       { id: "d1", date: t, semaine: "2026-W44", semaineLabel: "Cette semaine", categorie: "cible", marque: "Maison exemple", titre: "Nomination d'un nouveau directeur de l'image (exemple).", pourquoi: "Exemple de signal : en vrai, le Radar se remplit chaque matin.", priorite: 3, source: "Démo" },
       { id: "d2", date: t, semaine: "2026-W44", semaineLabel: "Cette semaine", categorie: "inspi", marque: "Studio exemple", titre: "Une campagne remarquée (exemple).", pourquoi: "Ce qu'on peut en retenir.", priorite: 1, source: "Démo" } ] } }; }
     if (action === "upload") return { file: { id: "demo", name: payload.file.name } };
-    if (action === "sel_list") return { selections: DEMO_SELS.map(x => ({ id: x.id, titre: x.titre, client: x.client, code: x.code, owner: x.owner, publie: x.publie, n: x.lieux.length, vues: x.vues, retours: x.retours.length, maj: Date.now() - 7200e3 })) };
+    if (action === "sel_list") return { selections: DEMO_SELS.map(x => ({ id: x.id, type: x.type || "lieux", titre: x.titre, client: x.client, code: x.code, owner: x.owner, publie: x.publie, n: x.lieux.length, vues: x.vues, retours: x.retours.length, maj: Date.now() - 7200e3 })) };
     if (action === "sel_get") return { selection: JSON.parse(JSON.stringify(DEMO_SELS.find(x => x.id === payload.id) || DEMO_SELS[0])) };
-    if (action === "sel_create") { const x = { id: "s" + Date.now(), titre: payload.titre, client: "", code: "", intro: "", show_prix: true, publie: false, vues: 0, retours: [], lieux: [], owner: "demo@rumeur.paris" }; DEMO_SELS.unshift(x); return { selection: x }; }
+    if (action === "sel_create") { const x = { id: "s" + Date.now(), type: payload.type || "lieux", titre: payload.titre || ({ lieux: "Sélection de lieux", casting: "Sélection casting", moodboard: "Moodboard" }[payload.type || "lieux"]), client: "", code: "", intro: "", show_prix: true, publie: false, vues: 0, retours: [], lieux: [], owner: "demo@rumeur.paris" }; DEMO_SELS.unshift(x); return { selection: x }; }
     if (action === "sel_save") { const x = DEMO_SELS.find(y => y.id === payload.id); Object.assign(x, JSON.parse(JSON.stringify(payload))); return { selection: JSON.parse(JSON.stringify(x)) }; }
     if (action === "sel_publish") { const x = DEMO_SELS.find(y => y.id === payload.id); x.publie = payload.publie !== false; x.token = x.token || "demo"; return { selection: JSON.parse(JSON.stringify(x)) }; }
     if (action === "sel_analyze" || action === "sel_from_ws") { const x = DEMO_SELS.find(y => y.id === payload.id); x.lieux.push({ id: "L" + Date.now(), nom: "Loft verrière (exemple)", zone: "Paris 11e", prix: "2 200 € HT / jour", description: "Grand loft lumineux sous verrière, sol béton ciré.", details: { Surface: "300 m²" }, photos: ["demo-a", "demo-b"], liens: [] }); return { selection: JSON.parse(JSON.stringify(x)) }; }
@@ -199,7 +199,7 @@
   function show(v) {
     VIEWS.forEach((x) => { const el = $("v-" + x); if (el) el.hidden = x !== v; });
     document.querySelectorAll(".tabs a").forEach((t) => t.setAttribute("aria-current", t.dataset.view === v ? "page" : "false"));
-    document.title = "Rumeur Office · " + (({ radar: "Radar", assistant: "Assistant", lieux: "Lieux", admin: "Admin", office: "Bureau" }[v] || (v === "lieux" ? "Lieux" : "Workspace " + wsCodeFromHash())));
+    document.title = "Rumeur Office · " + (({ radar: "Radar", assistant: "Assistant", lieux: "Sélections", admin: "Admin" }[v] || (v === "lieux" ? "Lieux" : "Workspace " + wsCodeFromHash())));
     if (PRIVATE.has(v)) {
       if (!user) { renderGate(v); return; }
       if (v !== "assistant" && v !== "workspace" && v !== "radar") loadDash(false);
@@ -215,7 +215,7 @@
       el.innerHTML = `<div class="in"><div class="gate"><p class="eyebrow">Espace équipe</p><h2>Bientôt ouvert.</h2><p>L'assistant, les projets, l'admin et l'office arrivent ici pour l'équipe Rumeur. Configuration en cours.</p>${demoLink}</div></div>`;
       return;
     }
-    el.innerHTML = `<div class="in"><div class="gate"><p class="eyebrow">Réservé à l'équipe Rumeur</p><h2>Rumeur Office.</h2><p>Connectez-vous avec votre compte @${esc(DOMAIN)} pour accéder au Radar, à l'assistant et aux sélections de lieux.</p><div class="gsi" id="gsi-${v}"></div>${gateError ? `<p class="err">${esc(gateError)}</p>` : ""}</div></div>`;
+    el.innerHTML = `<div class="in"><div class="gate"><p class="eyebrow">Réservé à l'équipe Rumeur</p><h2>Rumeur Office.</h2><p>Connectez-vous avec votre compte @${esc(DOMAIN)} pour accéder au Radar, à l'assistant et aux sélections clients.</p><div class="gsi" id="gsi-${v}"></div>${gateError ? `<p class="err">${esc(gateError)}</p>` : ""}</div></div>`;
     if (gisReady) renderGsi($("gsi-" + v));
     else $("gsi-" + v).innerHTML = `<span class="mini">Chargement de la connexion Google…</span>`;
   }
