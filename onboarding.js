@@ -32,8 +32,8 @@
     { nom: "Jessica Rocha", fonction: "Operations & Administrative Manager", sujets: "Organisation des opérations et de l'administration, facturation, paiements, accès aux outils et suivi des projets.", motscles: "opérations administration facture facturation paiement accès outils compte connexion mot de passe suivi projets chedar yousign synology gmail drive" },
     { nom: "Sandy Vigneron", fonction: "Ressources humaines", sujets: "Questions RH et démarches liées à votre situation.", motscles: "rh ressources humaines contrat congés absence mutuelle salaire démarches arrivée" },
     { nom: "Cynthia Basly", fonction: "Comptabilité · Prestataire externe", sujets: "Suivi comptable.", motscles: "comptabilité compta comptable" },
-    { nom: "Théo Jacquet", fonction: "Producteur", sujets: "Production et suivi des projets qui lui sont confiés.", motscles: "production producteur projet suivi" },
-    { nom: "Amélie Grosset", fonction: "Productrice", sujets: "Production et suivi des projets qui lui sont confiés.", motscles: "production productrice projet suivi" },
+    { nom: "Théo Jacquet", fonction: "Producteur", sujets: "", motscles: "production producteur projet suivi" },
+    { nom: "Amélie Grosset", fonction: "Productrice", sujets: "", motscles: "production productrice projet suivi" },
   ];
   const PREMIERS_JOURS = [
     "Rencontrer l'équipe et identifier vos interlocuteurs.",
@@ -137,7 +137,7 @@
         <p>Le site de RUMEUR présente notamment des projets réalisés pour Lacoste, Louis Vuitton et Celine.</p>
         <p><a href="${SITE_RUMEUR}" target="_blank" rel="noopener">Découvrir les projets de RUMEUR ↗</a></p></section>`;
     if (p.id === "p2") {
-      const cards = EQUIPE.map((m) => `<div class="onb-person${quiHit(m) ? "" : " dim"}" data-qui="${esc(EQUIPE.indexOf(m))}"><b>${esc(m.nom)}</b><span class="mini">${esc(m.fonction)}</span><p>${esc(m.sujets)}</p></div>`).join("");
+      const cards = EQUIPE.map((m) => `<div class="onb-person${quiHit(m) ? "" : " dim"}" data-qui="${esc(EQUIPE.indexOf(m))}"><b>${esc(m.nom)}</b><span class="mini">${esc(m.fonction)}</span>${m.sujets ? `<p>${esc(m.sujets)}</p>` : ""}</div>`).join("");
       return `
       <section class="onb-sec"><p>La Direction est assurée par <b>Flavia Lefebvre</b>, Présidente, et <b>Valentin Lefebvre</b>, Directeur Général.</p>
         <form class="form onb-qui" id="onb-qui" role="search"><label>À qui m'adresser ?<input name="qui" value="${esc(st.qui)}" placeholder="ex. facture, accès Chedar, congés, IA…" autocomplete="off"></label></form>
