@@ -26,13 +26,14 @@
   ];
   const VILLES = ["Paris", "São Paulo", "New York"];
   const EQUIPE = [
-    { nom: "Flavia Lefebvre", fonction: "Présidente", sujets: "Direction et supervision du pôle Production · Beauté & Mode.", motscles: "direction production beauté mode" },
+    { nom: "Flavia Lefebvre", fonction: "Présidente", sujets: "Direction et supervision du pôle Production · Beauté, Mode & Spiritueux.", motscles: "direction production beauté mode spiritueux" },
     { nom: "Valentin Lefebvre", fonction: "Directeur Général", sujets: "Direction et supervision du pôle Administration.", motscles: "direction administration" },
     { nom: "Alejandro Borjas Duncan", fonction: "Producteur exécutif & créatif · Référent IA", sujets: "Production exécutive, création et sujets liés à l'IA.", motscles: "production création créatif ia intelligence artificielle assistant claude" },
     { nom: "Jessica Rocha", fonction: "Operations & Administrative Manager", sujets: "Organisation des opérations et de l'administration, facturation, paiements, accès aux outils et suivi des projets.", motscles: "opérations administration facture facturation paiement accès outils compte connexion mot de passe suivi projets chedar yousign synology gmail drive" },
     { nom: "Sandy Vigneron", fonction: "Ressources humaines", sujets: "Questions RH et démarches liées à votre situation.", motscles: "rh ressources humaines contrat congés absence mutuelle salaire démarches arrivée" },
     { nom: "Cynthia Basly", fonction: "Comptabilité · Prestataire externe", sujets: "Suivi comptable.", motscles: "comptabilité compta comptable" },
-    { nom: "Théo Jacquet et Amélie Grosset", fonction: "Producteurs · Freelance", sujets: "Production et suivi des projets qui leur sont confiés.", motscles: "production producteur projet suivi" },
+    { nom: "Théo Jacquet", fonction: "Producteur", sujets: "Production et suivi des projets qui lui sont confiés.", motscles: "production producteur projet suivi" },
+    { nom: "Amélie Grosset", fonction: "Productrice", sujets: "Production et suivi des projets qui lui sont confiés.", motscles: "production productrice projet suivi" },
   ];
   const PREMIERS_JOURS = [
     "Rencontrer l'équipe et identifier vos interlocuteurs.",
