@@ -1,6 +1,6 @@
-/* Bienvenue (« #bienvenue ») : le guide d'onboarding interactif de RUMEUR, en quatre étapes.
+/* Bienvenue (« #bienvenue ») : le guide d'onboarding interactif de RUMEUR, en cinq étapes.
    Base commune à tous, plus un encadré « Pour votre rôle » par étape selon la fonction choisie.
-   1. Présentation · 2. L'équipe · 3. Premiers jours & outils · 4. Organisation du travail.
+   1. Présentation · 2. L'équipe · 3. Premiers jours & outils · 4. Organisation du travail · 5. Déroulement d'un projet.
    Chaque étape se marque « lue » ; les seules cases à cocher sont les actions vérifiables (tester l'accès à un outil).
    L'avancement vient du backend (action onb_get / onb_check) ; tant que le backend ne connaît pas encore
    ces actions, il reste dans ce navigateur. */
@@ -17,6 +17,7 @@
     { id: "p2", n: 2, titre: "L'équipe et vos interlocuteurs", court: "L'équipe" },
     { id: "p3", n: 3, titre: "Vos premiers jours et les outils", court: "Premiers jours & outils" },
     { id: "p4", n: 4, titre: "Notre organisation au quotidien", court: "Organisation" },
+    { id: "p5", n: 5, titre: "Le déroulement d'un projet", court: "Déroulement d'un projet" },
   ];
   const DOMAINES = [
     ["Développement créatif", ""],
@@ -57,6 +58,15 @@
     ["L'avancement", "statut, prochaines étapes et éléments en attente."],
     ["Les priorités", "urgences, difficultés et décisions nécessaires."],
   ];
+  // Étape 5 : les phases d'un projet, dans l'ordre (chaque phase = un ou plusieurs paragraphes).
+  const DEROULEMENT = [
+    ["Attribution et réception du brief", ["Le projet est attribué au producteur par Flavia, ou par Alejandro avec validation de Flavia. Le producteur reçoit le brief. Selon le projet, la supervision est assurée par Flavia ou Alejandro."]],
+    ["Préparation du projet et du devis", ["Le producteur précise les besoins du projet et prépare le planning ainsi que le devis avec son superviseur. Les questions et les éléments nécessitant une validation sont traités au fur et à mesure.", "Avant son envoi au client, le devis est validé par Flavia. Alejandro peut également le valider après l'avoir revu avec elle."]],
+    ["Confirmation du client et démarrage", ["La confirmation du client suffit pour démarrer la production. Selon le projet, un acompte peut être versé au démarrage ou en cours de projet, mais ce n'est pas systématique."]],
+    ["Suivi de la production", ["Le producteur coordonne l'équipe, suit le planning et échange directement avec le client, généralement avec son superviseur en copie.", "Toute modification du planning doit être partagée avec le superviseur et validée par celui-ci."]],
+    ["Livraison au client", ["Les éléments à livrer sont validés par le superviseur avant leur envoi au client par le producteur."]],
+    ["Clôture du projet", ["Après la livraison, le producteur rassemble les factures et les documents encore attendus, prépare le rendez-vous de rendu avec Jessica et réalise la sauvegarde du projet sur Synology."]],
+  ];
   // Fonctions et contenus propres à chacune, étape par étape (fournis par l'équipe au fur et à mesure).
   // Une étape sans contenu pour la fonction affiche « à compléter » : on n'invente rien.
   const ROLES = [
@@ -64,7 +74,7 @@
     { id: "commercial", label: "Directrice de clientèle et commerciale" },
   ];
   const ROLE_CONTENT = {
-    commercial: { p1: null, p2: null, p3: null, p4: null },
+    commercial: { p1: null, p2: null, p3: null, p4: null, p5: null },
   };
   const ALL_IDS = [...PARTS.map((p) => p.id), ...OUTILS.map((x) => x.id)];
 
@@ -157,6 +167,8 @@
           ${o.lien ? `<a class="open" href="${esc(o.lien)}"${/^https?:/.test(o.lien) ? ' target="_blank" rel="noopener"' : ""}>Ouvrir${/^https?:/.test(o.lien) ? " ↗" : ""}</a>` : `<span class="open mini">lien à venir</span>`}</li>`).join("")}</ul></section>
       <section class="onb-sec"><h3>Rumeur Office</h3>
         <p>Cet outil interne réunit le Radar, l'assistant IA, les sélections clients et l'admin. <button type="button" class="linkbtn" data-onb-tour="1">Faire la visite guidée</button></p></section>`;
+    if (p.id === "p5") return `
+      <ol class="onb-flow">${DEROULEMENT.map(([t, ps]) => `<li><h3>${esc(t)}</h3>${ps.map((x) => `<p>${esc(x)}</p>`).join("")}</li>`).join("")}</ol>`;
     return `
       <section class="onb-sec"><h3>Préparer le récap hebdomadaire</h3>
         <p>Des récaps hebdomadaires, coordonnés par <b>Jessica</b> avec les membres de l'équipe, permettent de suivre l'avancement des projets, d'anticiper les échéances et de signaler les difficultés. Pour chaque projet, les points abordés comprennent :</p>

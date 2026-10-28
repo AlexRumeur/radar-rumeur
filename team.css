@@ -512,3 +512,9 @@ a.btn.primary{color:#fff}
 .onb-tour .row{display:flex;gap:8px;justify-content:flex-end}
 @media (max-width:734px){.onb-tools li{flex-wrap:wrap}.onb-tools .open{margin-left:32px}}
 @media (prefers-reduced-motion:reduce){.onb-progress i,.onb-spot,.onb-person{transition:none}}
+.onb-flow{list-style:none;counter-reset:flow;margin:22px 0 0;padding:0;max-width:68ch}
+.onb-flow li{counter-increment:flow;position:relative;padding:0 0 18px 40px}
+.onb-flow li::before{content:counter(flow);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;border:1px solid var(--ink);display:grid;place-items:center;font-size:12px;font-variant-numeric:tabular-nums}
+.onb-flow li:not(:last-child)::after{content:"";position:absolute;left:12px;top:30px;bottom:6px;width:1px;background:var(--line)}
+.onb-flow h3{font-size:17px;font-weight:500;margin:1px 0 6px}
+.onb-flow p{margin:0 0 8px}
