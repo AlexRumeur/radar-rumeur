@@ -446,3 +446,75 @@ a.btn.primary{color:#fff}
 .dv-t thead th:first-child,.dv-t tfoot th{position:sticky;left:0;z-index:1}
 .dv-t thead th:first-child{background:var(--soft)}.dv-t tfoot th{background:var(--tile)}
 .dv-card .fcard .fk{display:none}
+
+/* Bienvenue (onboarding) : en-tête compact, étape en texte courant, cartes réservées à l'équipe */
+.onb{padding-top:24px}
+.onb .eyebrow{margin:0;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.onb-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;margin-bottom:16px}
+.onb-head h1{font-size:clamp(22px,2.6vw,28px);font-weight:500;letter-spacing:-.01em;margin:2px 0 0;text-wrap:balance}
+.onb-meta{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;font-size:13px;color:var(--muted)}
+.onb-fn{display:flex;align-items:center;gap:8px}
+.onb-fn select{font:400 13px var(--font);color:var(--ink);background:var(--tile);border:1px solid var(--line);border-radius:980px;padding:5px 10px;max-width:260px}
+.onb-pct{display:flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+.onb-progress{display:block;width:90px;height:5px;border-radius:5px;background:var(--line);overflow:hidden}
+.onb-progress i{display:block;height:100%;background:var(--ink);border-radius:5px;transition:width .4s}
+.onb-tabs{display:flex;flex-wrap:wrap;gap:6px;padding-bottom:14px;border-bottom:1px solid var(--line);scroll-margin-top:80px}
+.onb-tab{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border:1px solid var(--line);border-radius:980px;background:transparent;color:var(--ink);font:400 13px var(--font);cursor:pointer}
+.onb-tab .num{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--soft);font-size:11px;font-variant-numeric:tabular-nums}
+.onb-tab.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.onb-tab.on .num{background:#fff;color:var(--ink)}
+.onb-tab:hover{border-color:var(--ink)}
+.onb-tab:focus-visible,.linkbtn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.onb-part{padding-top:22px;max-width:760px}
+.onb-part h2{font-size:clamp(22px,2.6vw,26px);font-weight:500;letter-spacing:-.01em;margin:2px 0 0}
+.onb-sec{margin-top:22px}
+.onb-sec h3{font-size:17px;font-weight:500;margin:0 0 6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.onb-sec h3 small{font-size:13px;font-weight:400;color:var(--muted)}
+.onb-sec p{margin:0 0 10px;max-width:68ch}
+.onb-lead{color:var(--muted)}
+.onb-ul{margin:0 0 10px;padding-left:20px;max-width:68ch}
+.onb-ul li{margin:4px 0}
+.onb-ul b{font-weight:500}
+.linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--ink);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.onb-qui{margin:14px 0 12px;max-width:420px}
+.onb-people{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));gap:10px;margin-bottom:12px}
+.onb-person{padding:14px 16px;background:var(--tile);border:1px solid var(--line);border-radius:14px;transition:opacity .2s}
+.onb-person b{display:block;font-weight:500}
+.onb-person .mini{display:block;margin-top:2px}
+.onb-person p{margin:8px 0 0;font-size:13px}
+.onb-person.dim{opacity:.3}
+.onb-tools{list-style:none;margin:8px 0 0;padding:0;border-top:1px solid var(--line)}
+.onb-tools li{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.onb-tools .main{flex:1;min-width:0}
+.onb-tools b{font-weight:500}
+.onb-tools .u{color:var(--muted)}
+.onb-tools li.done b{text-decoration:line-through;text-decoration-color:var(--muted)}
+.onb-tools .open{white-space:nowrap;font-size:13px}
+.onb-check{position:relative;flex:0 0 auto;width:20px;height:20px;cursor:pointer}
+.onb-check input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.onb-check span{display:block;width:20px;height:20px;border:1.5px solid var(--muted);border-radius:5px;background:var(--tile)}
+.onb-check input:checked+span{background:var(--ink);border-color:var(--ink)}
+.onb-check input:checked+span::after{content:"";position:absolute;left:7px;top:3px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.onb-check input:focus-visible+span{outline:2px solid var(--ink);outline-offset:2px}
+.onb-role{padding-top:16px;border-top:1px solid var(--line)}
+.onb-role ul{margin:0;padding-left:20px}
+.onb-role.todo p{color:var(--muted);font-size:13px}
+.onb-foot{display:flex;justify-content:space-between;gap:10px;margin-top:28px;padding-top:16px;border-top:1px solid var(--line)}
+.onb-ask{margin-top:40px;max-width:760px;display:grid;gap:8px;font-size:13px;color:var(--muted)}
+.onb-ask .row{display:flex;gap:8px}
+.onb-ask input{flex:1;min-width:0;font:400 14px var(--font);color:var(--ink);background:var(--tile);border:1px solid var(--line);border-radius:980px;padding:8px 14px}
+.onb-local{margin-top:12px}
+.onb-spot{position:fixed;z-index:60;border-radius:12px;box-shadow:0 0 0 9999px rgba(20,20,20,.45);pointer-events:none;transition:all .25s}
+.onb-tour{position:fixed;z-index:61;background:var(--tile);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+.onb-tour h4{margin:2px 0 6px;font-size:17px;font-weight:500}
+.onb-tour p{margin:0 0 12px}
+.onb-tour .mini{margin:0}
+.onb-tour .row{display:flex;gap:8px;justify-content:flex-end}
+@media (max-width:734px){.onb-tools li{flex-wrap:wrap}.onb-tools .open{margin-left:32px}}
+@media (prefers-reduced-motion:reduce){.onb-progress i,.onb-spot,.onb-person{transition:none}}
+.onb-flow{list-style:none;counter-reset:flow;margin:22px 0 0;padding:0;max-width:68ch}
+.onb-flow li{counter-increment:flow;position:relative;padding:0 0 18px 40px}
+.onb-flow li::before{content:counter(flow);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;border:1px solid var(--ink);display:grid;place-items:center;font-size:12px;font-variant-numeric:tabular-nums}
+.onb-flow li:not(:last-child)::after{content:"";position:absolute;left:12px;top:30px;bottom:6px;width:1px;background:var(--line)}
+.onb-flow h3{font-size:17px;font-weight:500;margin:1px 0 6px}
+.onb-flow p{margin:0 0 8px}
