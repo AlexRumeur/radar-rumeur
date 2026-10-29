@@ -329,7 +329,7 @@
     const totalF = due.reduce((s, f) => s + euro(f["Montant TTC (€)"]), 0);
     const totalPO = PO.reduce((s, p) => s + euro(p["Montant HT (€)"]), 0);
     return `<div class="in">
-      ${vhead("Admin", "Admin.", "PO, factures fournisseurs, NDA et contrats freelance.", askBtn("Préparer un NDA", "Prépare un NDA pour le prestataire ", "primary") + askBtn("Contrat freelance", "Prépare un contrat freelance pour ", "ghost") + askBtn("Point admin", "Fais-moi le point admin : PO en attente, factures à payer ce mois-ci, NDA et contrats non signés.", "ghost"))}
+      ${vhead("Admin", "Admin.", "PO, factures fournisseurs, NDA et contrats freelance.", askBtn("Envoyer un NDA", "Je veux envoyer un NDA via Yousign.", "primary") + askBtn("Préparer un NDA", "Prépare un NDA pour le prestataire ", "ghost") + askBtn("Contrat freelance", "Prépare un contrat freelance pour ", "ghost") + askBtn("Point admin", "Fais-moi le point admin : PO en attente, factures à payer ce mois-ci, NDA et contrats non signés.", "ghost"))}
       <div class="kpis">
         <div class="kpi ${PO.length ? "hot" : ""}"><b>${PO.length}</b><span>PO manquants · ${fmtEur(totalPO)} HT</span></div>
         <div class="kpi"><b>${due.length}</b><span>factures à payer · ${fmtEur(totalF)} TTC</span></div>
@@ -390,14 +390,14 @@
   }
 
   // ───────── Assistant ─────────
-  const TOOL_LABELS = { tableau_de_bord: "Vue d'ensemble", lire_feuille: "Lecture registre", ajouter_ligne: "Ligne ajoutée", modifier_lignes: "Registre mis à jour", creer_projet: "Projet créé", mettre_a_jour_projet: "Projet mis à jour", creer_document_projet: "Document créé", ranger_fichier: "Fichier rangé", lister_dossier: "Dossier parcouru", chercher_drive: "Recherche Drive", lire_fichier: "Fichier lu", preparer_nda_ou_contrat: "Document juridique préparé", chercher_gmail: "Recherche Gmail", lire_fil_gmail: "Mail lu", enregistrer_piece_jointe: "Pièce jointe enregistrée", creer_brouillon: "Brouillon créé", envoyer_mail_interne: "Mail interne envoyé", signaler_achat: "Achats mis à jour", noter_idee: "Idée notée", chercher_connaissances: "Recherche dans le Cerveau", retenir: "Ajouté à la mémoire", guide_presentation: "Modèle Rumeur", voir_images: "Photos regardées", creer_presentation: "Présentation créée", creer_selection_lieux: "Sélection client créée", afficher_comparatif_devis: "Comparatif de devis" };
+  const TOOL_LABELS = { tableau_de_bord: "Vue d'ensemble", lire_feuille: "Lecture registre", ajouter_ligne: "Ligne ajoutée", modifier_lignes: "Registre mis à jour", creer_projet: "Projet créé", mettre_a_jour_projet: "Projet mis à jour", creer_document_projet: "Document créé", ranger_fichier: "Fichier rangé", lister_dossier: "Dossier parcouru", chercher_drive: "Recherche Drive", lire_fichier: "Fichier lu", preparer_nda_ou_contrat: "Document juridique préparé", chercher_gmail: "Recherche Gmail", lire_fil_gmail: "Mail lu", enregistrer_piece_jointe: "Pièce jointe enregistrée", creer_brouillon: "Brouillon créé", envoyer_mail_interne: "Mail interne envoyé", signaler_achat: "Achats mis à jour", noter_idee: "Idée notée", chercher_connaissances: "Recherche dans le Cerveau", retenir: "Ajouté à la mémoire", guide_presentation: "Modèle Rumeur", voir_images: "Photos regardées", creer_presentation: "Présentation créée", creer_selection_lieux: "Sélection client créée", afficher_comparatif_devis: "Comparatif de devis", yousign_modeles_nda: "Modèles NDA Yousign", yousign_preparer_nda: "NDA préparé dans Yousign", yousign_envoyer_nda: "NDA envoyé via Yousign", yousign_statut: "Statut Yousign" };
   const SUGG = [
     ["Créer une prez", "Crée une présentation dans le modèle Rumeur (locations / moodboard / casting / storyboard). Client : … Campagne : … Je joins les photos."],
     ["Comparer des devis", "Compare ces devis (je les joins) : prix HT et TTC, ce qui est inclus ou non, écarts entre eux, points à négocier, et ta recommandation. Projet : "],
     ["Process Rumeur", "Comment ça se passe chez Rumeur pour "],
     ["Lien client lieux", "Crée un lien client pour présenter ces lieux (je joins la présentation de repérages) : "],
     ["Nouveau brief", "Nouveau projet : voici mes notes du call de brief :\n"],
-    ["NDA prestataire", "Prépare un NDA pour le prestataire "],
+    ["Envoyer un NDA", "Je veux envoyer un NDA via Yousign."],
     ["Récap d'un projet", "Fais-moi le récap du projet "],
     ["Cette semaine", "Qu'est-ce qui arrive cette semaine ? Deadlines projets, retours à traiter, anniversaires, événements."],
   ];
