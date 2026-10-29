@@ -14,6 +14,8 @@
  *   WEB_SEARCH          on | off (par défaut on)
  *   DIGEST_MODE         send | draft (par défaut send — envoi interne uniquement)
  *   RUMEUR_INFOS        JSON des infos légales, ex. {"RUMEUR_SIREN":"…","RUMEUR_ADRESSE":"…"}
+ *   YOUSIGN_API_KEY     clé API Yousign (envoi des NDA, voir yousign.gs)
+ *   YOUSIGN_ENV         sandbox | production (par défaut sandbox)
  */
 
 // ───────────────────────── Carte du Drive ─────────────────────────
@@ -103,7 +105,8 @@ const JOB_TOOLS = {
   chercher_gmail: "Cherche dans Gmail", lire_fil_gmail: "Lit un fil de mails", enregistrer_piece_jointe: "Enregistre une pièce jointe", creer_brouillon: "Rédige un brouillon de mail",
   envoyer_mail_interne: "Envoie un mail interne", signaler_achat: "Met à jour les achats", noter_idee: "Note l'idée", chercher_connaissances: "Consulte les process Rumeur",
   retenir: "Mémorise l'information", guide_presentation: "Ouvre le modèle de présentation Rumeur", lire_workspace: "Ouvre le workspace projet", voir_images: "Regarde les images",
-  creer_presentation: "Crée la présentation", creer_selection_lieux: "Crée la sélection client"
+  creer_presentation: "Crée la présentation", creer_selection_lieux: "Crée la sélection client",
+  yousign_modeles_nda: "Liste les modèles NDA Yousign", yousign_preparer_nda: "Prépare le NDA dans Yousign", yousign_envoyer_nda: "Envoie le NDA via Yousign", yousign_statut: "Vérifie la signature Yousign"
 };
 function jobTool(name, i) {
   i = i || {};
@@ -713,6 +716,10 @@ const TOOLS = [
   { name: 'chercher_drive', description: 'Cherche des fichiers Drive par mot du titre.', input_schema: { type: 'object', properties: { titre_contient: { type: 'string' } }, required: ['titre_contient'] } },
   { name: 'lire_fichier', description: 'Lit le texte d\'un fichier Drive (Doc, Sheet, PDF, Word, texte).', input_schema: { type: 'object', properties: { file_id: { type: 'string' } }, required: ['file_id'] } },
   { name: 'preparer_nda_ou_contrat', description: 'Remplit le modèle NDA ou contrat freelance, crée le Google Doc + le PDF (si tous les champs sont remplis) et la ligne du Registre Admin. Champs NDA : PRESTATAIRE_NOM, PRESTATAIRE_STATUT, PRESTATAIRE_SIRET, PRESTATAIRE_ADRESSE, PRESTATAIRE_SIGNATAIRE, MISSION, PROJET, DUREE_ANNEES. Contrat en plus : LIVRABLES, DATE_DEBUT, DATE_FIN, LIEU, MONTANT_HT, TVA_MENTION, DELAI_PAIEMENT, NUMERO_PO, FRAIS, CLAUSE_CESSION_DROITS, CLAUSE_ANNULATION, DATE_NDA. Les champs RUMEUR_* viennent de la configuration ; ne les fournir que si la personne les donne.', input_schema: { type: 'object', properties: { type: { type: 'string', enum: ['nda', 'contrat'] }, champs: { type: 'object' }, email_prestataire: { type: 'string' } }, required: ['type', 'champs'] } },
+  { name: 'yousign_modeles_nda', description: "Liste les modèles NDA validés par la direction dans Yousign (RUMEUR NDA EN/FR, FREELANCE/COMPANY/PRESTATAIRE) avec leur id, leur langue et les emplacements signataires/champs. À appeler en premier quand on demande d'envoyer un NDA, pour proposer les options.", input_schema: { type: 'object', properties: {} } },
+  { name: 'yousign_preparer_nda', description: "Crée dans Yousign une demande de signature en BROUILLON à partir d'un modèle NDA (le modèle n'est pas modifié, rien n'est envoyé) et l'inscrit au Registre Admin. Signataire par défaut : le premier emplacement du modèle, rempli avec prestataire_nom et prestataire_email. signataires/champs : seulement si le modèle a plusieurs emplacements, avec leurs labels exacts.", input_schema: { type: 'object', properties: { template_id: { type: 'string' }, projet: { type: 'string' }, client: { type: 'string' }, prestataire_nom: { type: 'string', description: 'Prénom Nom ou raison sociale' }, prestataire_email: { type: 'string' }, email_demandeur: { type: 'string', description: 'Mail @rumeur.paris de la personne qui demande le NDA, mis en copie : elle reçoit un mail quand le prestataire a signé' }, signataires: { type: 'array', items: { type: 'object', properties: { label: { type: 'string' }, prenom: { type: 'string' }, nom: { type: 'string' }, email: { type: 'string' } }, required: ['label', 'prenom', 'nom', 'email'] } }, champs: { type: 'array', items: { type: 'object', properties: { label: { type: 'string' }, texte: { type: 'string' } }, required: ['label', 'texte'] } } }, required: ['template_id', 'projet', 'client', 'prestataire_nom', 'prestataire_email', 'email_demandeur'] } },
+  { name: 'yousign_envoyer_nda', description: "Envoie au(x) signataire(s) un NDA préparé avec yousign_preparer_nda. Uniquement après un oui explicite de la personne au récapitulatif (confirme=true).", input_schema: { type: 'object', properties: { id: { type: 'string', description: 'id renvoyé par yousign_preparer_nda' }, confirme: { type: 'boolean' } }, required: ['id', 'confirme'] } },
+  { name: 'yousign_statut', description: "Statut d'une demande de signature Yousign (envoyée, signée, refusée…).", input_schema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } },
   { name: 'chercher_gmail', description: 'Recherche Gmail (syntaxe Gmail) dans la boîte de l\'assistant (ai@rumeur.paris), qui est en copie des échanges clients.', input_schema: { type: 'object', properties: { requete: { type: 'string' }, max: { type: 'integer' } }, required: ['requete'] } },
   { name: 'lire_fil_gmail', description: 'Lit un fil Gmail complet (textes et noms des pièces jointes).', input_schema: { type: 'object', properties: { thread_id: { type: 'string' } }, required: ['thread_id'] } },
   { name: 'enregistrer_piece_jointe', description: 'Enregistre une pièce jointe d\'un fil Gmail dans un sous-dossier de projet (ou dans folder_id).', input_schema: { type: 'object', properties: { thread_id: { type: 'string' }, nom_piece_jointe: { type: 'string' }, code: { type: 'string' }, sous_dossier: { type: 'string', enum: SUBFOLDERS }, folder_id: { type: 'string' }, nouveau_nom: { type: 'string' } }, required: ['thread_id', 'nom_piece_jointe'] } },
@@ -754,6 +761,10 @@ function runTool(name, input, user) {
     case 'chercher_drive': return searchDrive(i.titre_contient);
     case 'lire_fichier': return readDriveFile(i.file_id);
     case 'preparer_nda_ou_contrat': return generateDocument(i, user);
+    case 'yousign_modeles_nda': return { modeles: ysTemplates(), environnement: prop('YOUSIGN_ENV', 'sandbox') };
+    case 'yousign_preparer_nda': return ysPrepare(i, user);
+    case 'yousign_envoyer_nda': return ysSend(i, user);
+    case 'yousign_statut': return ysStatus(i.id);
     case 'chercher_gmail': return searchGmail(i.requete, i.max);
     case 'lire_fil_gmail': return readThread(i.thread_id);
     case 'enregistrer_piece_jointe': return saveAttachment(i, user);
@@ -798,7 +809,7 @@ function systemPrompt(user) {
     '## Ce que tu fais',
     "1. Brief → projet : à partir de notes de call, d'un mail ou d'un PDF, rédige la FICHE BRIEF (format ci-dessous). Montre-la, attends la validation, puis appelle creer_projet. Ensuite propose un brouillon de mail récap à l'équipe interne.",
     "2. Suivi projet : range devis (1.DEVIS), DA/decks envoyés (2.DA & PROPOSITIONS), propositions talents (3.TALENTS & CASTING), retours client (4.RETOURS CLIENT) en versionnant (V1, V2…) et sans jamais écraser ; tiens le JOURNAL PROJET et le statut (Brief reçu → Proposition en cours → Proposition envoyée → Retours client → Validé → Production → Livré → Facturé → Archivé). Pour un récap : statut, dernières versions envoyées, retours en attente, échéances, points d'attention.",
-    "3. Admin : NDA et contrats freelance via preparer_nda_ou_contrat (demande d'abord tous les champs manquants en un seul message ; n'invente jamais un SIRET, un montant ou une clause). La signature se fait dans Yousign par un humain avec le PDF. Factures et PO : les feuilles po et factures sont tenues par des tâches automatiques quotidiennes — lis-les, ne les modifie pas.",
+    "3. Admin : NDA et contrats freelance via preparer_nda_ou_contrat (demande d'abord tous les champs manquants en un seul message ; n'invente jamais un SIRET, un montant ou une clause). La signature se fait dans Yousign par un humain avec le PDF. « Envoyer un NDA » (modèles déjà validés dans Yousign) : 1) appelle yousign_modeles_nda et propose les modèles en liste numérotée (langue FR/EN, freelance/société/prestataire) ; 2) demande le nom du projet et le client ; 3) demande le nom et le mail du prestataire, et le mail de la personne qui demande pour la mettre en copie (propose son adresse de connexion) : elle recevra un mail quand le prestataire aura signé ; 4) appelle yousign_preparer_nda (brouillon) et montre le récapitulatif (modèle, projet, client, nom, mail, personne en copie, environnement sandbox/production) ; 5) seulement après un oui explicite, yousign_envoyer_nda avec confirme=true. Ne modifie jamais un modèle. En sandbox, précise que c'est un test sans valeur juridique. Factures et PO : les feuilles po et factures sont tenues par des tâches automatiques quotidiennes — lis-les, ne les modifie pas.",
     "4. Livraisons et retours client : la feuille livraisons est automatique (lecture seule) ; tu peux ajouter des retours reçus en call dans la feuille retours (Reçu le, Projet, Livrable, Version, Retour (un point par ligne), De, Source (mail), Statut = À traiter).",
     "5. Office : signaler_achat quand il manque quelque chose ; pour une commande, lis achats, regroupe par fournisseur, donne les liens ; tu ne paies et ne commandes jamais toi-même.",
     "6. Rappels : anniversaires (annuaire), événements pro (agenda, ajoute-y les événements donnés), deadlines projets. Pour une veille d'événements, utilise la recherche web et ne propose que des événements avec une source officielle.",
