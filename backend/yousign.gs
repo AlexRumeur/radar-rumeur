@@ -49,7 +49,8 @@ function ysTemplates() {
 
 /**
  * Crée la demande de signature en brouillon (rien n'est envoyé).
- * p = { template_id, projet, client, prestataire_nom, prestataire_email, signataires?: [{label, prenom, nom, email}], champs?: [{label, texte}] }
+ * p = { template_id, projet, client, prestataire_nom, prestataire_email, email_demandeur, signataires?: [{label, prenom, nom, email}], champs?: [{label, texte}] }
+ * La personne qui demande est ajoutée en copie (follower Yousign) : elle reçoit l'envoi puis un mail quand le NDA est signé.
  */
 function ysPrepare(p, user) {
   const t = ysCall('get', '/templates/' + p.template_id);
@@ -61,6 +62,9 @@ function ysPrepare(p, user) {
     prenom: parts.length > 1 ? parts.slice(0, -1).join(' ') : parts[0], nom: parts.length > 1 ? parts[parts.length - 1] : parts[0], email: p.prestataire_email,
   }]).map(s => ({ label: s.label, info: { first_name: s.prenom, last_name: s.nom, email: s.email, locale: locale } }));
   if (signers.some(s => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.info.email || ''))) throw new Error('Adresse email du signataire invalide.');
+  const domain = '@' + prop('ALLOWED_DOMAIN', 'rumeur.paris');
+  const cc = String(p.email_demandeur || user.email).trim().toLowerCase();
+  if (!cc.endsWith(domain)) throw new Error('La personne en copie doit avoir une adresse ' + domain + '.');
   const placeholders = { signers: signers };
   if (p.champs && p.champs.length) placeholders.read_only_text_fields = p.champs.map(c => ({ label: c.label, text: String(c.texte) }));
   const name = 'NDA — ' + p.prestataire_nom + ' — ' + p.projet + ' (' + p.client + ') — ' + Utilities.formatDate(new Date(), TZ, 'dd.MM.yy');
@@ -68,8 +72,9 @@ function ysPrepare(p, user) {
     name: name.slice(0, 128), delivery_mode: 'email', template_id: p.template_id, template_placeholders: placeholders,
     external_id: 'rumeur-' + Utilities.getUuid().slice(0, 8),
   });
+  ysCall('post', '/signature_requests/' + sr.id + '/followers', [{ email: cc, locale: locale }]);
   // Mémorise qui a préparé ce brouillon : seul cette personne pourra l'envoyer.
-  CacheService.getScriptCache().put('ys_' + sr.id, JSON.stringify({ by: user.email, name: name, modele: t.name, emails: signers.map(s => s.info.email), projet: p.projet, client: p.client, prestataire: p.prestataire_nom }), 21600);
+  CacheService.getScriptCache().put('ys_' + sr.id, JSON.stringify({ by: user.email, name: name, modele: t.name, emails: signers.map(s => s.info.email), copie: cc, projet: p.projet, client: p.client, prestataire: p.prestataire_nom }), 21600);
   appendObj('admin', {
     'Date': today(), 'Type': 'NDA (Yousign)', 'Prestataire ou client': p.prestataire_nom, 'Email': p.prestataire_email || '',
     'Projet lié': p.projet + ' — ' + p.client, 'Statut': 'brouillon Yousign', 'Lien document': 'yousign:' + sr.id, 'Demandé par': user.email,
@@ -78,6 +83,7 @@ function ysPrepare(p, user) {
   return {
     brouillon: true, id: sr.id, nom: name, modele: t.name, environnement: prop('YOUSIGN_ENV', 'sandbox'),
     signataires: signers.map(s => s.label + ' : ' + s.info.first_name + ' ' + s.info.last_name + ' <' + s.info.email + '>'),
+    copie: cc + ' (reçoit l’envoi et un mail quand le NDA est signé)',
     a_faire: "Montre ce récapitulatif à la personne et attends un oui explicite avant d'appeler yousign_envoyer_nda.",
   };
 }
@@ -92,7 +98,7 @@ function ysSend(p, user) {
   const r = ysCall('post', '/signature_requests/' + p.id + '/activate', {});
   updateWhere('admin', 'Lien document', 'yousign:' + p.id, { 'Statut': 'envoyé Yousign' });
   logAction(user, 'NDA envoyé via Yousign : ' + m.name + ' → ' + m.emails.join(', '), 'Admin');
-  return { envoye: true, statut: r.status || 'ongoing', nom: m.name, destinataires: m.emails, environnement: prop('YOUSIGN_ENV', 'sandbox') };
+  return { envoye: true, statut: r.status || 'ongoing', nom: m.name, destinataires: m.emails, copie: m.copie, environnement: prop('YOUSIGN_ENV', 'sandbox') };
 }
 
 /** Statut d'une demande (pour « le NDA de X est signé ? »). */
